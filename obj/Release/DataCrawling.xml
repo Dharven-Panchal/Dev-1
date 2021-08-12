@@ -1,0 +1,131 @@
+﻿<?xml version="1.0"?>
+<doc>
+<assembly>
+<name>
+DataCrawling
+</name>
+</assembly>
+<members>
+<member name="T:DataCrawling.My.Resources.Resources">
+<summary>
+  A strongly-typed resource class, for looking up localized strings, etc.
+</summary>
+</member>
+<member name="P:DataCrawling.My.Resources.Resources.ResourceManager">
+<summary>
+  Returns the cached ResourceManager instance used by this class.
+</summary>
+</member>
+<member name="P:DataCrawling.My.Resources.Resources.Culture">
+<summary>
+  Overrides the current thread's CurrentUICulture property for all
+  resource lookups using this strongly typed resource class.
+</summary>
+</member>
+<member name="M:DataCrawling.Common.IsInternetConnected">
+ <summary>
+ Check internet connection availability.
+ </summary>
+ <returns>Boolean</returns>
+</member>
+<member name="M:DataCrawling.Common.IsDBConnected">
+ <summary>
+ Check Database connection availability.
+ </summary>
+ <returns>Boolean</returns>
+</member>
+<member name="M:DataCrawling.DataAccess.Read">
+ <summary>
+ Returns data of Case Type from DB
+ </summary>
+ <returns></returns>
+</member>
+<member name="M:DataCrawling.CaseTypeBLL.GetCaseType">
+ <summary>
+ Returns data from returned by Data Access class
+ </summary>
+ <returns></returns>
+</member>
+<member name="M:DataCrawling.Main.InitializeChromium">
+ <summary>
+ Initialize Chromim with provided URL.
+ </summary>
+</member>
+<member name="M:DataCrawling.Searching.IsDateValid">
+ <summary>
+ Compare Date From and Date To 
+ </summary>
+ <returns></returns>
+</member>
+<member name="M:DataCrawling.Searching.GetTableData">
+ <summary>
+ All records will be converted into Record Model class
+ </summary>
+</member>
+<member name="M:DataCrawling.Searching.MainDataProcess">
+ <summary>
+ Each data will be processed
+ </summary>
+</member>
+<member name="M:DataCrawling.Searching.DownloadPDF(DataCrawling.RecordModel,System.String)">
+ <summary>
+ Download pdfs from Docket Event table
+ </summary>
+ <param name="caseDetails"></param>
+</member>
+<member name="M:DataCrawling.Searching.ExtractDataFromNoticePDF(System.String,DataCrawling.RecordModel,System.String)">
+ <summary>
+ Extract required data from downloaded PDF files of type Notice To Appeared
+ </summary>
+ <param name="fullPdfPath"></param>
+ <param name="recordModel"></param>
+ <param name="srNo"></param>
+</member>
+<member name="M:DataCrawling.Searching.ExtractDataFromStatementPDF(System.String,DataCrawling.RecordModel,System.String)">
+ <summary>
+ Extract required data from downloaded PDF files of type Statement of Claims
+ </summary>
+ <param name="fullPdfPath"></param>
+ <param name="recordModel"></param>
+ <param name="srNo"></param>
+</member>
+<member name="M:DataCrawling.Searching.RenderPreviousPage">
+ <summary>
+ It will go back to previous page
+ </summary>
+</member>
+<member name="M:DataCrawling.Searching.ExtractDataFromComplaintPDF(System.String,DataCrawling.RecordModel,System.String)">
+ <summary>
+ Extract required data from downloaded PDF files of type Complaint
+ </summary>
+ <param name="fullPdfPath"></param>
+ <param name="caseDetails"></param>
+</member>
+<member name="M:DataCrawling.Searching.DeletePdfFileFromPath">
+ <summary>
+ Delete PDF file once data has been extracted.
+ </summary>
+</member>
+<member name="M:DataCrawling.Searching.InsertDataIntoDB(System.String)">
+ <summary>
+ Insert Data into Database
+ </summary>
+ <param name="_srNo"></param>
+ 
+</member>
+<member name="M:DataCrawling.Searching.IsAvailableFile(System.String)">
+ <summary>
+ Will check that PDF is downloaded or not
+ </summary>
+ <param name="filePath"></param>
+ <returns></returns>
+</member>
+<member name="M:DataCrawling.Searching.CanRead(System.String,System.String)">
+ <summary>
+ PDF will check that is it readable or not.
+ </summary>
+ <param name="filePath"></param>
+ <returns></returns>
+</member>
+</members>
+</doc>

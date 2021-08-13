@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.31424.327
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "DataCrawling", "DataCrawling.vbproj", "{4F43D696-44E7-48C9-BB5D-779BEEBB3B46}"
 EndProject
-Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "DataCrawlerSetup", "DataCrawlerSetup\DataCrawlerSetup.vdproj", "{4D093CAC-7BAD-4EB6-BD94-0FA0D068790B}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

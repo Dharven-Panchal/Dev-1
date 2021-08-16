@@ -603,7 +603,7 @@ Public Class Searching
                                     Dim Firstlinereg As Regex = New Regex(regexp, RegexOptions.Compiled)
                                     Dim m As Match = Firstlinereg.Match(strBlockSplit(i))
 
-                                    If prev.ToLower().Contains("New balance") Then
+                                    If prev.ToLower().Contains("new balance") Then
                                         Dim regexp1 As String = "(^\$?(([1-9]\d{0,2}(,\d{3})*)|0)?\.\d{1,2}$)"
                                         Dim Firstlinereg1 As Regex = New Regex(regexp1, RegexOptions.Compiled)
                                         Dim m1 As Match = Firstlinereg1.Match(strBlockSplit(i))

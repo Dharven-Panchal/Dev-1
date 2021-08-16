@@ -479,7 +479,7 @@ Public Class Searching
                         CrawlerLogger.LogError("This PDF is might be Handwritten or Scanned! Case No - " + _caseNo)
                     Else
                         Dim prev As String = String.Empty
-                        If text.Contains("NOTICE To PLAINTIFF") OrElse text.Contains("NOTICE To PLAINTIFF And DEFENDANTS") Then
+                        If text.Contains("NOTICE TO PLAINTIFF") OrElse text.Contains("NOTICE TO PLAINTIFF AND DEFENDANTS") Then
                             Dim theLines As String() = text.Split(ChrW(10))
                             isAccountDetailsInPdf = True
                             Dim words = page.GetWords(NearestNeighbourWordExtractor.Instance)
@@ -490,11 +490,16 @@ Public Class Searching
                                 Dim strBlockSplit As String() = strBlock.Split(ChrW(10))
 
                                 For i As Integer = 0 To strBlockSplit.Length - 1
-                                    If prev.Contains("NOTICE To PLAINTIFF (S) And DEFENDANT (S)") OrElse prev.Contains("NOTICE To PLAINTIFF And DEFENDANTS") Then
+                                    If prev.Contains("NOTICE TO PLAINTIFF (S) AND DEFENDANT (S)") OrElse prev.Contains("NOTICE TO PLAINTIFF AND DEFENDANTS") OrElse prev.Contains("NOTICE TO PLAINTIFF(S) AND DEFENDANT(S)") Then
                                         Dim _names As String() = strBlockSplit(i).Split(" "c)
-                                        extractedDataModel.FirstName = _names(0)
-                                        extractedDataModel.MiddleName = _names(1)
-                                        extractedDataModel.LastName = _names(2)
+                                        If _names.Length = 3 Then
+                                            extractedDataModel.FirstName = _names(0)
+                                            extractedDataModel.MiddleName = _names(1)
+                                            extractedDataModel.LastName = _names(2)
+                                        Else
+                                            extractedDataModel.FirstName = _names(0)
+                                            extractedDataModel.LastName = _names(1)
+                                        End If
                                         If strBlockSplit.Length = 3 Then
                                             Dim address As String = strBlockSplit(1)
                                             extractedDataModel.Address1 = address
@@ -672,7 +677,7 @@ Public Class Searching
                                   mainDashboardForm.toolStripLabel.Text = "Move back to take the another party details name"
                               End Sub)
                 End If
-                Thread.Sleep(1 * 1000)
+                Thread.Sleep(2 * 1000)
                 If Me.InvokeRequired Then
                     Me.Invoke(Sub()
                                   mainDashboardForm.toolStripProgressBar.Value = 30
@@ -689,7 +694,7 @@ Public Class Searching
                 CrawlerLogger.LogInfo("All(paging fileter) records has been loaded in table")
 
                 'Wait screen to extract data properly and stop to load another case for 2 second
-                Thread.Sleep(2 * 1000)
+                Thread.Sleep(3 * 1000)
             End If
         Catch ex As Exception
             CrawlerLogger.LogError("Exception occurred at RenderPreviousPage(). Message: " + ex.Message)

@@ -72,12 +72,12 @@ Public Class Main
                           toolStripLabel.Text = "Logged in to portal!.. Click on New Search button to start process"
                           toolStripProgressBar.Value = 5
                       End Sub)
+            NewSearchToolStripMenuItem.Visible = True
         End If
     End Sub
     Private Sub DashboardToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles DashboardToolStripMenuItem.Click
         'At initialization, start chromium
         InitializeChromium()
-        NewSearchToolStripMenuItem.Visible = True
         DashboardToolStripMenuItem.Enabled = False
     End Sub
     Private Sub Main_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing

@@ -72,8 +72,8 @@ Public Class Searching
                     chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('businessName').value=" + "'" + txtBox_BusinessName.Text + "'")
                     chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('caseNumber').value=" + "'" + txtBox_CaseNo.Text + "'")
                     If isFormDateSelected Then
-                        chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateFrom').value=" + "'" + dateFrom.Value + "'")
-                        chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateTo').value=" + "'" + dateTo.Value + "'")
+                        chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateFrom').value=" + "'" + dateFrom.Value.ToString("M/d/yy") + "'")
+                        chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateTo').value=" + "'" + dateTo.Value.ToString("M/d/yy") + "'")
                     End If
                     chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('caseSearch').click()")
                     chromiumWebBrowser.DownloadHandler = New Downloader()
@@ -168,6 +168,7 @@ Public Class Searching
                 Return False
             Else
                 btn_search.Enabled = True
+                isFormDateSelected = True
                 Return False
             End If
             isFormDateSelected = True
@@ -879,17 +880,19 @@ Public Class Searching
             dtCoumn.Columns.Add("PartyName")
             dtCoumn.Columns.Add("NewBalance")
             dtCoumn.Columns.Add("BusinessName")
+            dtCoumn.Columns.Add("DateFrom")
+            dtCoumn.Columns.Add("DateTo")
 
             Dim rowData As DataRow = Nothing
             rowData = dtCoumn.NewRow()
             rowData("Fname") = extractedDataModel.FirstName.Trim()
             rowData("Mname") = If(extractedDataModel.MiddleName Is Nothing, String.Empty, extractedDataModel.MiddleName.Trim())
             rowData("Lname") = extractedDataModel.LastName.Trim()
-            rowData("Address1") = extractedDataModel.Address1.Trim()
+            rowData("Address1") = If(extractedDataModel.Address1 Is Nothing, String.Empty, extractedDataModel.Address1.Trim())
             rowData("Address2") = If(extractedDataModel.Address2 Is Nothing, String.Empty, extractedDataModel.Address2.Trim())
-            rowData("State") = extractedDataModel.State.Trim()
-            rowData("City") = extractedDataModel.City.Trim()
-            rowData("ZipCode") = extractedDataModel.PostalCode.Trim()
+            rowData("State") = If(extractedDataModel.State Is Nothing, String.Empty, extractedDataModel.State.Trim())
+            rowData("City") = If(extractedDataModel.City Is Nothing, String.Empty, extractedDataModel.City.Trim())
+            rowData("ZipCode") = If(extractedDataModel.PostalCode Is Nothing, String.Empty, extractedDataModel.PostalCode.Trim())
             Dim _caseData = recordModelList.Where(Function(o) o.SrNo = _srNo)
             Dim _caseNo As String = _caseData.Select(Function(o) o.CaseNumber).FirstOrDefault()
             Dim _caseType As String = _caseData.Select(Function(o) o.Type).FirstOrDefault()
@@ -902,6 +905,13 @@ Public Class Searching
             rowData("PartyName") = _pName.Trim()
             rowData("NewBalance") = If(extractedDataModel.NewBalance Is Nothing, String.Empty, extractedDataModel.NewBalance)
             rowData("BusinessName") = txtBox_BusinessName.Text.Trim()
+            If isFormDateSelected = True Then
+                rowData("DateFrom") = dateFrom.Value
+                rowData("DateTo") = dateTo.Value
+            Else
+                rowData("DateFrom") = ""
+                rowData("DateTo") = ""
+            End If
             dtCoumn.Rows.Add(rowData)
             dsData.Tables.Add(dtCoumn)
 

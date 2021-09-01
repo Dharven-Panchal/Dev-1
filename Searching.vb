@@ -30,6 +30,7 @@ Public Class Searching
     Dim isAccountDetailsInPdf As Boolean
     Dim isFormDateSelected As Boolean = False
     Dim downloadedDirectoryPath As String = Path.Combine(Environment.CurrentDirectory, "DC")
+    Public isPDFDownloaded As Integer = 0
 
 #Region "Pattern"
     Dim regexp As String = "(^[A-Za-z]{3,}\s+([A-Za-z][.]\s+)?[A-Za-z]{3,}\s+,+\s+([A-Za-z]{3,}[.])$)"
@@ -76,7 +77,10 @@ Public Class Searching
                         chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateTo').value=" + "'" + dateTo.Value.ToString("M/d/yy") + "'")
                     End If
                     chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('caseSearch').click()")
-                    chromiumWebBrowser.DownloadHandler = New Downloader()
+                    'chromiumWebBrowser.DownloadHandler = New Downloader()
+                    Dim downer As Downloader = New Downloader()
+                    chromiumWebBrowser.DownloadHandler = downer
+
                     mainDashboardForm.pnlMain.Controls.Clear()
                     mainDashboardForm.pnlMain.Controls.Add(chromiumWebBrowser)
                     mainDashboardForm.Show()
@@ -85,6 +89,7 @@ Public Class Searching
                     mainDashboardForm.DashboardToolStripMenuItem.Enabled = False
                     AddHandler chromiumWebBrowser.FrameLoadEnd, AddressOf BrowserOnFrameEnd
                     AddHandler chromiumWebBrowser.LoadingStateChanged, AddressOf Browser_LoadingStateChanged
+                    AddHandler downer.OnDownloadUpdatedFired, AddressOf OnDownloadUpdatedFired
                     mainDashboardForm.toolStripLabel.Text = "Searching the criteria of: " + txtBox_BusinessName.Text
                     mainDashboardForm.toolStripProgressBar.Value = 10
                 Else
@@ -99,6 +104,10 @@ Public Class Searching
         Catch ex As Exception
             CrawlerLogger.LogError("Exception occurred when click on Search button. Message: " + ex.Message)
         End Try
+    End Sub
+
+    Private Sub OnDownloadUpdatedFired(sender As Object, e As DownloadItem)
+        isPDFDownloaded = e.PercentComplete
     End Sub
 
     Public Sub BrowserOnFrameEnd(sender As Object, e As FrameLoadEndEventArgs)
@@ -254,6 +263,7 @@ Public Class Searching
     ''' </summary>
     Private Sub MainDataProcess()
         Try
+            Dim isCallTwiceParty As Integer = 0
             If Me.InvokeRequired Then
                 Me.Invoke(Sub()
                               mainDashboardForm.toolStripProgressBar.Value = 30
@@ -263,12 +273,14 @@ Public Class Searching
 
             For Each recordItem In recordModelList
                 Dim srId As Double = (CDbl(recordItem.SrNo) - 1)
-                Dim recordDetailsJsResponse = chromiumWebBrowser.EvaluateScriptAsync("document.getElementsByClassName('caseLink')[" + srId.ToString() + "].click();")
-
+CallParty:
+                'Dim recordDetailsJsResponse = chromiumWebBrowser.EvaluateScriptAsync("document.getElementsByClassName('caseLink')[" + srId.ToString() + "].click();")
+                Dim recordDetailsJsResponse = chromiumWebBrowser.GetMainFrame().EvaluateScriptAsync("document.getElementsByClassName('caseLink')[" + srId.ToString() + "].click();")
+                Thread.Sleep(1 * 1000)
                 If recordDetailsJsResponse.Status Then
 
                     'Wait Screen to extract data properly And stop to load another case for 3 second
-                    Thread.Sleep(3 * 1000)
+                    Thread.Sleep(2 * 1000)
 
                     'At this point, each page details will be rendered on our UI. Now, we can Extract required data.
                     Const getPartiesTableScript As String = " var tdDetailList = [];" _
@@ -279,8 +291,9 @@ Public Class Searching
                             & "        if(row.cells[1].innerHTML.indexOf('Plaintiff') !== -1) { tdDetailList.push(tdDetail); } " _
                             & " } return tdDetailList })();"
 
-                    Dim partiesTableJsResponse = chromiumWebBrowser.EvaluateScriptAsync(getPartiesTableScript)
-
+                    'Dim partiesTableJsResponse = chromiumWebBrowser.EvaluateScriptAsync(getPartiesTableScript)
+                    Dim partiesTableJsResponse = chromiumWebBrowser.GetMainFrame().EvaluateScriptAsync(getPartiesTableScript)
+                    Thread.Sleep(2 * 1000)
                     If partiesTableJsResponse.Result.Success And isPartyListFilled = False AndAlso partiesTableJsResponse.Result IsNot Nothing Then
                         For Each item In partiesTableJsResponse.Result.Result
                             Dim partyName As String = item.Name.ToString()
@@ -302,9 +315,15 @@ Public Class Searching
 
                         DownloadPDF(recordItem, recordItem.SrNo)
                         RenderPreviousPage()
+                        isCallTwiceParty = 0
 
                     Else
                         CrawlerLogger.LogError("At MainDataProcess() JS Response status is false while extract Partied from table. Result - " + partiesTableJsResponse?.Result?.Result?.ToString())
+                        isCallTwiceParty = isCallTwiceParty + 1
+                        If isCallTwiceParty < 3 Then
+                            CrawlerLogger.LogInfo("At MainDataProcess() GoTo CallParty again Receving js response fasle . CallPartyBlock - " + isCallTwiceParty.ToString())
+                            GoTo CallParty
+                        End If
                     End If
                 Else
                     CrawlerLogger.LogError("At MainDataProcess() JS Response status is false while click on CaseNo Link.")
@@ -337,7 +356,7 @@ Public Class Searching
                                      & "			 var ts = document.getElementsByClassName('noprint'); " _
                                      & "			 for(let j = 0; j <= ts.length; j++) " _
                                      & "			 { " _
-                                     & "				if(ts[j] != null && ts[j].text == 'Notice to Appear Scheduled') " _
+                                     & "				if(ts[j] != null && (ts[j].text =='Notice to Appear Scheduled' || ts[j].text =='Notice to Appear')) " _
                                      & "				{ " _
                                      & "					var link = document.createElement('a');       " _
                                      & "					link.href = ts[j].href;               " _
@@ -382,7 +401,7 @@ Public Class Searching
 
             Dim docketTableJsResponse = chromiumWebBrowser.EvaluateScriptAsync(downloadPDFScript)
             CrawlerLogger.LogInfo("Executed script to download PDF from website")
-            Thread.Sleep(20 * 1000)
+            'Thread.Sleep(20 * 1000)
             Dim pdfFileName = docketTableJsResponse.Result?.Result
             If Me.InvokeRequired Then
                 Me.Invoke(Sub()
@@ -393,6 +412,11 @@ Public Class Searching
                                   mainDashboardForm.toolStripLabel.Text = "Downloading the pdf file, File: " + pdfFileName
                               End If
                           End Sub)
+            End If
+            If Not String.IsNullOrEmpty(pdfFileName) Then
+                While isPDFDownloaded < 100
+                    mainDashboardForm.toolStripLabel.Text = "Downloading the pdf file, File: " + pdfFileName + " " + CStr(isPDFDownloaded) + "%"
+                End While
             End If
             Thread.Sleep(3 * 1000)
             If Not String.IsNullOrEmpty(pdfFileName) Then
@@ -604,14 +628,30 @@ Public Class Searching
                                     Dim Firstlinereg As Regex = New Regex(regexp, RegexOptions.Compiled)
                                     Dim m As Match = Firstlinereg.Match(strBlockSplit(i))
 
+                                    Dim regexpAdd As String = "(^[A-Z]{3,}\s+[A-Z]{2}\s[0-9]{5}(?:-[0-9]{4})?$)"
+                                    Dim FirstlineregAdd As Regex = New Regex(regexpAdd, RegexOptions.Compiled)
+                                    Dim mAdd As Match = FirstlineregAdd.Match(strBlockSplit(i))
+
                                     If prev.ToLower().Contains("new balance") Then
                                         Dim regexp1 As String = "(^\$?(([1-9]\d{0,2}(,\d{3})*)|0)?\.\d{1,2}$)"
                                         Dim Firstlinereg1 As Regex = New Regex(regexp1, RegexOptions.Compiled)
                                         Dim m1 As Match = Firstlinereg1.Match(strBlockSplit(i))
-
                                         If m1.Success Then
                                             Dim _newBalance As String = strBlockSplit(0)
-                                            extractedDataModel.NewBalance = _newBalance
+                                            If extractedDataModel.NewBalance Is Nothing AndAlso _newBalance.StartsWith("$") Then
+                                                extractedDataModel.NewBalance = _newBalance
+                                            End If
+                                        End If
+                                    ElseIf strBlockSplit(i).ToLower().Contains("new balance") Then
+                                        If strBlockSplit.Length > 1 Then
+                                            Try
+                                                Dim _newBalance As String = strBlockSplit(i + 1)
+                                                If extractedDataModel.NewBalance Is Nothing AndAlso _newBalance.StartsWith("$") Then
+                                                    extractedDataModel.NewBalance = _newBalance
+                                                End If
+                                            Catch ex As Exception
+
+                                            End Try
                                         End If
                                     End If
 
@@ -632,6 +672,58 @@ Public Class Searching
                                                 extractedDataModel.City = stateInfo(0)
                                                 extractedDataModel.State = stateInfo(1)
                                                 extractedDataModel.PostalCode = stateInfo(2)
+                                            End If
+                                        ElseIf strBlockSplit.Length > 3 Then
+                                            Dim address As String = strBlockSplit(i + 1)
+                                            extractedDataModel.Address1 = address
+                                            Dim address2 As String = strBlockSplit(i + 2)
+                                            Dim regexpAddCheck As String = "(\b[A-Z]{2,}\s+\d{5}(-\d{4})?\b)"
+                                            Dim FirstlineregAddCheck As Regex = New Regex(regexpAddCheck, RegexOptions.Compiled)
+                                            Dim mAdd2Check As Match = FirstlineregAddCheck.Match(address2)
+                                            If mAdd2Check.Success Then
+                                                Dim stateInfCheck As String() = strBlockSplit(i + 2).Split(" "c)
+                                                If stateInfCheck.Length > 3 Then
+                                                    extractedDataModel.City = stateInfCheck(0) + " " + stateInfCheck(1)
+                                                    extractedDataModel.State = stateInfCheck(2)
+                                                    extractedDataModel.PostalCode = stateInfCheck(3)
+                                                ElseIf stateInfCheck.Length = 3 Then
+                                                    extractedDataModel.City = stateInfCheck(0)
+                                                    extractedDataModel.State = stateInfCheck(1)
+                                                    extractedDataModel.PostalCode = stateInfCheck(2)
+                                                End If
+                                            Else
+                                                extractedDataModel.Address2 = address2
+                                                Dim stateInfo As String() = strBlockSplit(i + 3).Split(" "c)
+                                                If stateInfo.Length > 3 Then
+                                                    extractedDataModel.City = stateInfo(0) + " " + stateInfo(1)
+                                                    extractedDataModel.State = stateInfo(2)
+                                                    extractedDataModel.PostalCode = stateInfo(3)
+                                                ElseIf stateInfo.Length = 3 Then
+                                                    extractedDataModel.City = stateInfo(0)
+                                                    extractedDataModel.State = stateInfo(1)
+                                                    extractedDataModel.PostalCode = stateInfo(2)
+                                                End If
+                                            End If
+
+                                        End If
+                                    ElseIf mAdd.Success Then
+                                        If extractedDataModel.FirstName Is Nothing Then
+                                            Dim _detailsName As String = strBlockSplit(i - 2)
+                                            Dim _names As String() = _detailsName.Split(" "c)
+                                            If _names.Length = 2 Then
+                                                extractedDataModel.FirstName = _names(0)
+                                                extractedDataModel.LastName = _names(1)
+                                            End If
+                                            extractedDataModel.Address1 = strBlockSplit(i - 1)
+                                            Dim _stateInfo As String() = strBlockSplit(i).Split(" "c)
+                                            If _stateInfo.Length > 3 Then
+                                                extractedDataModel.City = _stateInfo(0) + " " + _stateInfo(1)
+                                                extractedDataModel.State = _stateInfo(2)
+                                                extractedDataModel.PostalCode = _stateInfo(3)
+                                            Else
+                                                extractedDataModel.City = _stateInfo(0)
+                                                extractedDataModel.State = _stateInfo(1)
+                                                extractedDataModel.PostalCode = _stateInfo(2)
                                             End If
                                         End If
                                     End If

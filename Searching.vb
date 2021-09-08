@@ -276,7 +276,7 @@ Public Class Searching
 CallParty:
                 'Dim recordDetailsJsResponse = chromiumWebBrowser.EvaluateScriptAsync("document.getElementsByClassName('caseLink')[" + srId.ToString() + "].click();")
                 Dim recordDetailsJsResponse = chromiumWebBrowser.GetMainFrame().EvaluateScriptAsync("document.getElementsByClassName('caseLink')[" + srId.ToString() + "].click();")
-                Thread.Sleep(1 * 1000)
+                Thread.Sleep(2 * 1000)
                 If recordDetailsJsResponse.Status Then
 
                     'Wait Screen to extract data properly And stop to load another case for 3 second
@@ -293,7 +293,7 @@ CallParty:
 
                     'Dim partiesTableJsResponse = chromiumWebBrowser.EvaluateScriptAsync(getPartiesTableScript)
                     Dim partiesTableJsResponse = chromiumWebBrowser.GetMainFrame().EvaluateScriptAsync(getPartiesTableScript)
-                    Thread.Sleep(2 * 1000)
+                    Thread.Sleep(3 * 1000)
                     If partiesTableJsResponse.Result.Success And isPartyListFilled = False AndAlso partiesTableJsResponse.Result IsNot Nothing Then
                         For Each item In partiesTableJsResponse.Result.Result
                             Dim partyName As String = item.Name.ToString()
@@ -998,8 +998,11 @@ CallParty:
             rowData("NewBalance") = If(extractedDataModel.NewBalance Is Nothing, String.Empty, extractedDataModel.NewBalance)
             rowData("BusinessName") = txtBox_BusinessName.Text.Trim()
             If isFormDateSelected = True Then
-                rowData("DateFrom") = dateFrom.Value
-                rowData("DateTo") = dateTo.Value
+                'Dim culture As IFormatProvider = New Globalization.CultureInfo("en-US", True)
+                'Dim dateFromVal As DateTime = DateTime.ParseExact(dateFrom.Value, "yyyy-MM-dd", culture)
+                'Dim dateToVal As DateTime = DateTime.ParseExact(dateTo.Value, "yyyy-MM-dd", culture)
+                rowData("DateFrom") = dateFrom.Value.ToString("yyyy-MM-dd")
+                rowData("DateTo") = dateTo.Value.ToString("yyyy-MM-dd")
             Else
                 rowData("DateFrom") = ""
                 rowData("DateTo") = ""

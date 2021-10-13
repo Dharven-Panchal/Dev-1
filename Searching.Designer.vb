@@ -22,6 +22,7 @@ Partial Class Searching
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
+        Dim CheckBoxProperties1 As PresentationControls.CheckBoxProperties = New PresentationControls.CheckBoxProperties()
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(Searching))
         Me.lbl_CaseType = New System.Windows.Forms.Label()
         Me.lbl_FirstName = New System.Windows.Forms.Label()
@@ -44,7 +45,9 @@ Partial Class Searching
         Me.comboBox_caseType = New System.Windows.Forms.ComboBox()
         Me.lbl_Info = New System.Windows.Forms.Label()
         Me.Panel1 = New System.Windows.Forms.Panel()
+        Me.CheckBoxComboBox1 = New PresentationControls.CheckBoxComboBox()
         Me.Label1 = New System.Windows.Forms.Label()
+        Me.chkAll = New System.Windows.Forms.CheckBox()
         Me.Panel1.SuspendLayout()
         Me.SuspendLayout()
         '
@@ -263,6 +266,7 @@ Partial Class Searching
         Me.comboBox_caseType.Name = "comboBox_caseType"
         Me.comboBox_caseType.Size = New System.Drawing.Size(511, 34)
         Me.comboBox_caseType.TabIndex = 1
+        Me.comboBox_caseType.Visible = False
         '
         'lbl_Info
         '
@@ -280,6 +284,8 @@ Partial Class Searching
         '
         Me.Panel1.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.Panel1.Controls.Add(Me.chkAll)
+        Me.Panel1.Controls.Add(Me.CheckBoxComboBox1)
         Me.Panel1.Controls.Add(Me.Label1)
         Me.Panel1.Controls.Add(Me.lbl_CaseType)
         Me.Panel1.Controls.Add(Me.lbl_Info)
@@ -307,6 +313,17 @@ Partial Class Searching
         Me.Panel1.Size = New System.Drawing.Size(886, 782)
         Me.Panel1.TabIndex = 1
         '
+        'CheckBoxComboBox1
+        '
+        CheckBoxProperties1.ForeColor = System.Drawing.SystemColors.ControlText
+        Me.CheckBoxComboBox1.CheckBoxProperties = CheckBoxProperties1
+        Me.CheckBoxComboBox1.DisplayMemberSingleItem = ""
+        Me.CheckBoxComboBox1.FormattingEnabled = True
+        Me.CheckBoxComboBox1.Location = New System.Drawing.Point(269, 176)
+        Me.CheckBoxComboBox1.Name = "CheckBoxComboBox1"
+        Me.CheckBoxComboBox1.Size = New System.Drawing.Size(511, 24)
+        Me.CheckBoxComboBox1.TabIndex = 21
+        '
         'Label1
         '
         Me.Label1.BackColor = System.Drawing.Color.Black
@@ -315,6 +332,16 @@ Partial Class Searching
         Me.Label1.Name = "Label1"
         Me.Label1.Size = New System.Drawing.Size(889, 2)
         Me.Label1.TabIndex = 20
+        '
+        'chkAll
+        '
+        Me.chkAll.AutoSize = True
+        Me.chkAll.Location = New System.Drawing.Point(786, 179)
+        Me.chkAll.Name = "chkAll"
+        Me.chkAll.Size = New System.Drawing.Size(84, 21)
+        Me.chkAll.TabIndex = 22
+        Me.chkAll.Text = "CheckAll"
+        Me.chkAll.UseVisualStyleBackColor = True
         '
         'Searching
         '
@@ -354,4 +381,6 @@ Partial Class Searching
     Friend WithEvents lbl_Info As Label
     Friend WithEvents Panel1 As Panel
     Friend WithEvents Label1 As Label
+    Friend WithEvents CheckBoxComboBox1 As PresentationControls.CheckBoxComboBox
+    Friend WithEvents chkAll As CheckBox
 End Class

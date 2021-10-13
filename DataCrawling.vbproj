@@ -62,6 +62,9 @@
     <Reference Include="CefSharp.WinForms, Version=91.1.211.0, Culture=neutral, PublicKeyToken=40c4b6fc221f4138, processorArchitecture=MSIL">
       <HintPath>packages\CefSharp.WinForms.91.1.211\lib\net452\CefSharp.WinForms.dll</HintPath>
     </Reference>
+    <Reference Include="CheckBoxComboBox">
+      <HintPath>dll\CheckBoxComboBox.dll</HintPath>
+    </Reference>
     <Reference Include="ClosedXML, Version=0.95.4.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\ClosedXML.0.95.4\lib\net46\ClosedXML.dll</HintPath>
     </Reference>
@@ -158,6 +161,7 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CasetypeDTO.vb" />
     <Compile Include="Common.vb" />
     <Compile Include="CrawlerLogger.vb" />
     <Compile Include="DataLayer\DataAccess.vb" />
@@ -172,6 +176,7 @@
     <Compile Include="Main.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="PDFConvertToImage.vb" />
     <Compile Include="Report.Designer.vb">
       <DependentUpon>Report.vb</DependentUpon>
     </Compile>

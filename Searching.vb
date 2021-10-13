@@ -1,9 +1,11 @@
-﻿Imports System.IO
+﻿Imports System.Configuration
+Imports System.IO
 Imports System.Text
 Imports System.Text.RegularExpressions
 Imports System.Threading
 Imports CefSharp
 Imports CefSharp.WinForms
+Imports DataCrawling.AutoPDFToImageConverter.Others
 Imports Polly
 Imports UglyToad.PdfPig
 Imports UglyToad.PdfPig.DocumentLayoutAnalysis.PageSegmenter
@@ -31,6 +33,7 @@ Public Class Searching
     Dim isFormDateSelected As Boolean = False
     Dim downloadedDirectoryPath As String = Path.Combine(Environment.CurrentDirectory, "DC")
     Public isPDFDownloaded As Integer = 0
+    Public Property CaseTypes As List(Of CasetypeDTO)
 
 #Region "Pattern"
     Dim regexp As String = "(^[A-Za-z]{3,}\s+([A-Za-z][.]\s+)?[A-Za-z]{3,}\s+,+\s+([A-Za-z]{3,}[.])$)"
@@ -67,6 +70,26 @@ Public Class Searching
             If Common.IsInternetConnected() Then
                 btn_search.Enabled = True
                 If txtBox_BusinessName.Text <> "" Then
+                    If CheckBoxComboBox1.Text.ToString().Trim().Contains("----Select All----") Then
+                        commaSeparatedData = String.Join(",", CaseTypes.AsEnumerable().[Select](Function(x) x.propCaseValue.ToString()).ToArray())
+                    Else
+                        Dim checkRecord = CheckBoxComboBox1.Text.ToString().Trim().Replace(", ", ",")
+                        If String.IsNullOrEmpty(checkRecord) Then
+                            MessageBox.Show("Please check atleast one Case Type!", "Data Crawler", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                            Return
+                        End If
+                        Dim splitValue As String() = checkRecord.Split(",")
+                        Dim pers As CasetypeDTO = New CasetypeDTO
+                        Dim strCTValue As String = ""
+                        For index = 0 To splitValue.Length - 1
+                            pers = CaseTypes.FirstOrDefault(Function(p) p.propCaseType = splitValue(index))
+                            strCTValue += (pers.propCaseValue & ",")
+                        Next
+
+                        commaSeparatedData = strCTValue.TrimEnd(",")
+
+                    End If
+
                     chromiumWebBrowser = New ChromiumWebBrowser("https://myeclerk.myorangeclerk.com/Cases/Search")
                     chromiumWebBrowser.Size = New Size(1300, 782)
                     chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('ct').value=" + "'" + commaSeparatedData + "'")
@@ -80,7 +103,6 @@ Public Class Searching
                     'chromiumWebBrowser.DownloadHandler = New Downloader()
                     Dim downer As Downloader = New Downloader()
                     chromiumWebBrowser.DownloadHandler = downer
-
                     mainDashboardForm.pnlMain.Controls.Clear()
                     mainDashboardForm.pnlMain.Controls.Add(chromiumWebBrowser)
                     mainDashboardForm.Show()
@@ -109,7 +131,6 @@ Public Class Searching
     Private Sub OnDownloadUpdatedFired(sender As Object, e As DownloadItem)
         isPDFDownloaded = e.PercentComplete
     End Sub
-
     Public Sub BrowserOnFrameEnd(sender As Object, e As FrameLoadEndEventArgs)
         Try
             If (chromiumWebBrowser.IsBrowserInitialized And MainFrameRenderCount = 1) Then
@@ -124,7 +145,6 @@ Public Class Searching
             CrawlerLogger.LogError("Exception occurred when Browser on Frame End event executed. Message: " + ex.Message)
         End Try
     End Sub
-
     Private Sub Browser_LoadingStateChanged(sender As Object, e As LoadingStateChangedEventArgs)
         If Not e.IsLoading Then
             Dim script = "$(document).ready(function () {
@@ -138,7 +158,6 @@ Public Class Searching
             chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded(script)
         End If
     End Sub
-
     Private Sub Searching_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Try
             comboBox_caseType.Select()
@@ -146,23 +165,32 @@ Public Class Searching
             dateTo.CustomFormat = "M/d/yy"
             dateFrom.Format = DateTimePickerFormat.Custom
             dateFrom.CustomFormat = "M/d/yy"
-
+            CheckBoxComboBox1.Height = 34
             Dim dataTable As DataTable
             dataTable = ctb.GetCaseType()
             comboBox_caseType.DataSource = dataTable
             comboBox_caseType.ValueMember = "CTValue"
             comboBox_caseType.DisplayMember = "CaseType"
+
+            CaseTypes = New List(Of CasetypeDTO)
+            For index = 0 To dataTable.Rows.Count - 1
+                Dim _casetype = New CasetypeDTO
+                _casetype.propID = dataTable.Rows(index)("id")
+                _casetype.propCaseType = dataTable.Rows(index)("casetype")
+                _casetype.propCaseValue = dataTable.Rows(index)("CTValue")
+                CaseTypes.Add(_casetype)
+            Next
+            CheckBoxComboBox1.Items.AddRange(CaseTypes.AsEnumerable().[Select](Function(x) x.propCaseType).ToArray())
+
+            CheckBoxComboBox1.ValueMember = "propCaseValue"
             commaSeparatedData = String.Join(",", dataTable.AsEnumerable().[Select](Function(x) x.Field(Of String)("CTValue").ToString()).ToArray())
         Catch ex As Exception
             CrawlerLogger.LogError("Exception occurred while loading Search Form. Message: " + ex.Message)
         End Try
     End Sub
-
     Private Sub dateFrom_ValueChanged(sender As Object, e As EventArgs) Handles dateTo.ValueChanged, dateFrom.ValueChanged
         IsDateValid()
     End Sub
-
-
     ''' <summary>
     ''' Compare Date From and Date To 
     ''' </summary>
@@ -185,13 +213,13 @@ Public Class Searching
             Return False
         End Try
     End Function
-
-
     ''' <summary>
     ''' All records will be converted into Record Model class
     ''' </summary>
     Private Async Sub GetTableData()
         Try
+            'chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementsByTagName('input')[1].value='pending';")
+            'Thread.Sleep(3 * 1000)
             If Me.InvokeRequired Then
                 Me.Invoke(Sub()
                               mainDashboardForm.toolStripProgressBar.Value = 20
@@ -205,7 +233,6 @@ Public Class Searching
                         & "   var tdDetail = {SrNo : row.cells[0].innerHTML, CaseNumber : row.cells[1].innerHTML, Description : row.cells[2].innerHTML, Type : row.cells[3].innerHTML, Status : row.cells[4].innerHTML, DOB : row.cells[5].innerHTML, JudgeName : row.cells[6].innerHTML, Date : row.cells[7].innerHTML}; " _
                         & "   if(row.cells[4].innerHTML.indexOf('Pending') !== -1) { tdDetailList.push(tdDetail); } " _
                         & " } return tdDetailList })();"
-
 
             Dim jsResponse = Await chromiumWebBrowser.GetMainFrame().EvaluateScriptAsync(getTableScript)
             If jsResponse.Success And isRecordListFilled = False AndAlso jsResponse.Result IsNot Nothing AndAlso jsResponse.Result.Count > 0 Then
@@ -256,8 +283,6 @@ Public Class Searching
             CrawlerLogger.LogError("Exception occurred at GetTableData(). Message: " + ex.Message)
         End Try
     End Sub
-
-
     ''' <summary>
     ''' Each data will be processed
     ''' </summary>
@@ -347,7 +372,7 @@ CallParty:
                 Directory.CreateDirectory(downloadedDirectoryPath)
                 CrawlerLogger.LogInfo("DC directory has been created.")
             End If
-
+            DeletePdfFileFromPath()
             Const downloadPDFScript As String = "(function () { " _
                                      & "		var tdDetailTable = document.getElementById('docketEventsCollapse').getElementsByTagName('table')[0]; " _
                                      & "		var isNoticeFound = false; " _
@@ -401,7 +426,7 @@ CallParty:
 
             Dim docketTableJsResponse = chromiumWebBrowser.EvaluateScriptAsync(downloadPDFScript)
             CrawlerLogger.LogInfo("Executed script to download PDF from website")
-            'Thread.Sleep(20 * 1000)
+            ' Thread.Sleep(20 * 1000)
             Dim pdfFileName = docketTableJsResponse.Result?.Result
             If Me.InvokeRequired Then
                 Me.Invoke(Sub()
@@ -410,6 +435,7 @@ CallParty:
                                   mainDashboardForm.toolStripLabel.Text = "Downloading the pdf file for one by one case: Not Found!"
                               Else
                                   mainDashboardForm.toolStripLabel.Text = "Downloading the pdf file, File: " + pdfFileName
+
                               End If
                           End Sub)
             End If
@@ -432,22 +458,53 @@ CallParty:
                 If File.Exists(fullPdfPath) AndAlso CanRead(fullPdfPath, _srNo) Then
                     If fullPdfPath.Contains("StatementOfClaim") Then
                         If IsAvailableFile(fullPdfPath) Then
-                            ExtractDataFromStatementPDF(fullPdfPath, recordModel, _srNo)
+                            If txtBox_BusinessName.Text?.ToLower().Contains("goldman sachs") Then
+                                ExtractDataFromStatementPDFGoldMan(fullPdfPath, recordModel, _srNo)
+                            ElseIf txtBox_BusinessName.Text?.ToLower().Contains("persolve") Then
+                                ExtractDataFromStatementPDFPersolve(fullPdfPath, recordModel, _srNo)
+                            ElseIf CheckBoxComboBox1.Text.Trim().ToLower() = "eviction" Then
+                                ExtractDataFromStatementPDFTenant(fullPdfPath, recordModel, _srNo)
+                            Else
+                                ExtractDataFromStatementPDF(fullPdfPath, recordModel, _srNo)
+                            End If
+
                             isAccountDetailsInPdf = False
                         Else
                             CrawlerLogger.LogError("pdf file not available for Statement of Claims.")
                         End If
                     ElseIf fullPdfPath.Contains("Complaint") Then
+                        If txtBox_BusinessName.Text?.ToLower().Contains("goldman sachs") Then
+                            CrawlerLogger.LogInfo("Goldman Sachs type pdf file not available for Complaint.")
+                            DeletePerticularFile(fullPdfPath)
+                            Return
+                        End If
+                        If txtBox_BusinessName.Text?.ToLower().Contains("persolve") Then
+                            CrawlerLogger.LogInfo("Persolve type pdf file not available for Complaint.")
+                            DeletePerticularFile(fullPdfPath)
+                            Return
+                        End If
                         If IsAvailableFile(fullPdfPath) Then
-                            ExtractDataFromStatementPDF(fullPdfPath, recordModel, _srNo)
                             If isAccountDetailsInPdf = False Then
                                 ExtractDataFromComplaintPDF(fullPdfPath, recordModel, _srNo)
                                 isAccountDetailsInPdf = False
+                            ElseIf CheckBoxComboBox1.Text.Trim().ToLower() = "eviction" Then
+                                ExtractDataFromStatementPDFTenant(fullPdfPath, recordModel, _srNo)
                             End If
+                            ExtractDataFromStatementPDF(fullPdfPath, recordModel, _srNo)
                         Else
                             CrawlerLogger.LogError("pdf file not available for Complaint.")
                         End If
                     ElseIf fullPdfPath.Contains("NoticeAppearScheduled") Then
+                        If txtBox_BusinessName.Text?.ToLower().Contains("goldman sachs") Then
+                            CrawlerLogger.LogInfo("Goldman Sachs type pdf file not available for Notice to Appear Scheduled.")
+                            DeletePerticularFile(fullPdfPath)
+                            Return
+                        End If
+                        If txtBox_BusinessName.Text?.ToLower().Contains("persolve") Then
+                            CrawlerLogger.LogInfo("Persolve type pdf file not available for Notice to Appear Scheduled.")
+                            DeletePerticularFile(fullPdfPath)
+                            Return
+                        End If
                         If IsAvailableFile(fullPdfPath) Then
                             ExtractDataFromNoticePDF(fullPdfPath, recordModel, _srNo)
                             isAccountDetailsInPdf = False
@@ -464,16 +521,302 @@ CallParty:
                                   End Sub)
                     End If
                     Thread.Sleep(2 * 1000)
+                    If File.Exists(fullPdfPath) Then
+                        DeletePerticularFile(fullPdfPath)
+                    End If
                 End If
             End If
 
             'Delete Directory
             DeletePdfFileFromPath()
+            DeleteJPGTXTFileFromPath()
+            isPDFDownloaded = 0
         Catch ex As Exception
             CrawlerLogger.LogError("Exception occurred at DownloadPDF(). Message: " + ex.Message)
         End Try
     End Sub
 
+    Private Sub DeletePerticularFile(fullPdfPath As String)
+        Try
+            If File.Exists(fullPdfPath) Then
+                GC.Collect()
+                GC.WaitForPendingFinalizers()
+                File.Delete(fullPdfPath)
+                CrawlerLogger.LogInfo("Perticular File has been deleted successfully. File Name - " + fullPdfPath)
+                If Me.InvokeRequired Then
+                    Me.Invoke(Sub()
+                                  mainDashboardForm.toolStripProgressBar.Value = 80
+                                  mainDashboardForm.toolStripLabel.Text = "deleting the downloaded pdf file"
+                              End Sub)
+                End If
+                Thread.Sleep(1 * 1000)
+            End If
+        Catch ex As Exception
+            CrawlerLogger.LogError("Exception occurred at DeletePerticularFile(). Message: " + ex.Message)
+        End Try
+    End Sub
+
+    Private Sub DeleteJPGTXTFileFromPath()
+        Try
+            Dim downloadedPath As String = Path.Combine(Environment.CurrentDirectory, "OCRTEXT")
+            If Directory.Exists(downloadedDirectoryPath) Then
+                Dim files = Directory.GetFiles(downloadedPath)
+                For Each item In files
+                    If File.Exists(item) Then
+                        File.Delete(item)
+                        CrawlerLogger.LogInfo("File has been deleted successfully. File Name - " + item)
+                        If Me.InvokeRequired Then
+                            Me.Invoke(Sub()
+                                          mainDashboardForm.toolStripProgressBar.Value = 80
+                                          mainDashboardForm.toolStripLabel.Text = "deleting the downloaded pdf file"
+                                      End Sub)
+                        End If
+                    End If
+                    Thread.Sleep(1 * 1000)
+                Next
+            End If
+        Catch ex As Exception
+            CrawlerLogger.LogError("Exception occurred at DeleteJPGTXTFileFromPath(). Message: " + ex.Message)
+        End Try
+    End Sub
+
+    Private Sub ExtractDataFromStatementPDFTenant(fullPdfPath As String, recordModel As RecordModel, srNo As String)
+        Try
+            'First add current case details into ExtractedDataModel
+            extractedDataModel = New ExtractedDataModel()
+            extractedDataModel.CaseDetails = recordModel
+            extractedDataModel.CaseDetails.PartyModelList = partyModelList
+            Dim _caseNo As String = recordModelList.Where(Function(o) o.SrNo = srNo).Select(Function(o) o.CaseNumber).FirstOrDefault()
+            Using pdfDoc = PdfDocument.Open(fullPdfPath)
+                If Me.InvokeRequired Then
+                    Me.Invoke(Sub()
+                                  mainDashboardForm.toolStripProgressBar.Value = 55
+                                  mainDashboardForm.toolStripLabel.Text = "Reading PDF of downloaded and Extracting the data"
+                              End Sub)
+                End If
+                Thread.Sleep(2 * 1000)
+                For Each page In pdfDoc.GetPages()
+                    ' Either extract based on order in the underlying document with newlines and spaces.
+                    Dim text = ContentOrderTextExtractor.GetText(page)
+                    If String.IsNullOrEmpty(text) Then
+                        CrawlerLogger.LogError("This PDF is might be Handwritten Or Scanned! Case No - " + _caseNo)
+                    Else
+                        Dim prev As String = String.Empty
+                        If text.Contains("TENANT EVICTION") Then
+                            Dim theLines As String() = text.Split(ChrW(10))
+                            isAccountDetailsInPdf = True
+
+                            For iDx As Integer = 0 To theLines.Length - 1
+                                If theLines(iDx).Contains("PLAINTIFF") OrElse theLines(iDx).Contains("vs") Then
+                                    Dim fnames As String = theLines(iDx + 2)
+                                    Dim Lnames As String = theLines(iDx + 3)
+                                    extractedDataModel.FirstName = fnames
+                                    extractedDataModel.LastName = Lnames
+                                End If
+                                If theLines(iDx).Contains("as follows:") Then
+                                    Dim charLocation As Integer = theLines(iDx + 1).IndexOf(".", StringComparison.Ordinal)
+                                    Dim charLocation2 As Integer = theLines(iDx + 1).IndexOf(":", StringComparison.Ordinal)
+                                    Dim add1 As String = theLines(iDx + 1).Substring(0, charLocation)
+                                    Dim add2 As String = theLines(iDx + 1).Substring(charLocation, charLocation2).Trim().TrimEnd(","c)
+                                    extractedDataModel.Address1 = add1
+                                    extractedDataModel.Address2 = add2
+                                    Dim regexp As String = "([^,\d\s][^,\d]*$)"
+                                    Dim Firstlinereg As Regex = New Regex(regexp, RegexOptions.Compiled)
+                                    Dim m As Match = Firstlinereg.Match(add2)
+                                    If m.Success Then
+                                        Dim city As String = m.Groups(0).Value
+                                        extractedDataModel.City = city
+                                    End If
+                                    Dim stateZip As String = theLines(iDx + 1).Substring(theLines(iDx + 1).LastIndexOf(","c) + 1).Trim()
+                                    Dim stateInfo As String() = stateZip.Split(" "c)
+                                    extractedDataModel.State = stateInfo(0)
+                                    extractedDataModel.PostalCode = stateInfo(1)
+                                    Exit For
+                                End If
+                            Next
+                            CrawlerLogger.LogInfo("Data has been successfully extracted for Statement of Claims type PDF. Case No - " + _caseNo)
+                            If Me.InvokeRequired Then
+                                Me.Invoke(Sub()
+                                              mainDashboardForm.toolStripProgressBar.Value = 55
+                                              mainDashboardForm.toolStripLabel.Text = "Data has been successfully extracted for Statement of Claims type PDF. Case No -" + _caseNo
+                                          End Sub)
+                            End If
+                            Thread.Sleep(2 * 1000)
+                        Else
+                            CrawlerLogger.LogInfo("PDF file format is different than implemented mechanism while processing Statement Of Claims Type. Case No - " + _caseNo)
+                        End If
+                    End If
+                Next
+            End Using
+            If extractedDataModel.FirstName IsNot Nothing Then
+                InsertDataIntoDB(srNo)
+            Else
+                CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)
+            End If
+        Catch ex As Exception
+            CrawlerLogger.LogError("Exception occurred at ExtractDataFromStatementPDFTenant(). Message: " + ex.Message)
+        End Try
+    End Sub
+    Private Sub ExtractDataFromStatementPDFPersolve(fullPdfPath As String, recordModel As RecordModel, srNo As String)
+        Try
+            'First add current case details into ExtractedDataModel
+            extractedDataModel = New ExtractedDataModel()
+            extractedDataModel.CaseDetails = recordModel
+            extractedDataModel.CaseDetails.PartyModelList = partyModelList
+            Dim _caseNo As String = recordModelList.Where(Function(o) o.SrNo = srNo).Select(Function(o) o.CaseNumber).FirstOrDefault()
+            Using pdfDoc = PdfDocument.Open(fullPdfPath)
+                If Me.InvokeRequired Then
+                    Me.Invoke(Sub()
+                                  mainDashboardForm.toolStripProgressBar.Value = 55
+                                  mainDashboardForm.toolStripLabel.Text = "Reading PDF of downloaded and Extracting the data"
+                              End Sub)
+                End If
+                Thread.Sleep(2 * 1000)
+                For Each page In pdfDoc.GetPages()
+                    ' Either extract based on order in the underlying document with newlines and spaces.
+                    Dim text = ContentOrderTextExtractor.GetText(page)
+                    If String.IsNullOrEmpty(text) Then
+                        CrawlerLogger.LogError("This PDF is might be Handwritten Or Scanned! Case No - " + _caseNo)
+                    Else
+                        Dim prev As String = String.Empty
+                        If text.Contains("SIMPLE INTEREST RETAIL INSTALLMENT CONTRACT") Then
+                            Dim theLines As String() = text.Split(ChrW(10))
+                            isAccountDetailsInPdf = True
+
+                            For iDx As Integer = 0 To theLines.Length - 1
+                                If theLines(iDx).Contains("Buyer (and Co-Buyer) Name and Address") Then
+                                    Dim _names As String() = theLines(iDx + 1).Split(" "c)
+                                    If _names.Length = 2 Then
+                                        extractedDataModel.FirstName = _names(0)
+                                        extractedDataModel.LastName = _names(1)
+                                    Else
+                                        extractedDataModel.FirstName = _names(0)
+                                        extractedDataModel.MiddleName = _names(1)
+                                        extractedDataModel.LastName = _names(2)
+                                    End If
+                                    extractedDataModel.Address1 = theLines(iDx + 2)
+                                    extractedDataModel.Address2 = theLines(iDx + 3)
+                                    Dim stateInfo As String() = theLines(iDx + 4).Split(" "c)
+                                    If stateInfo.Length > 3 Then
+                                        extractedDataModel.City = stateInfo(0) + " " + stateInfo(1)
+                                        extractedDataModel.State = stateInfo(2)
+                                        extractedDataModel.PostalCode = stateInfo(3)
+                                    Else
+                                        extractedDataModel.City = stateInfo(0)
+                                        extractedDataModel.State = stateInfo(1)
+                                        extractedDataModel.PostalCode = stateInfo(2)
+                                    End If
+                                End If
+                            Next
+                            CrawlerLogger.LogInfo("Data has been successfully extracted for Statement of Claims type PDF. Case No - " + _caseNo)
+                            If Me.InvokeRequired Then
+                                Me.Invoke(Sub()
+                                              mainDashboardForm.toolStripProgressBar.Value = 55
+                                              mainDashboardForm.toolStripLabel.Text = "Data has been successfully extracted for Statement of Claims type PDF. Case No -" + _caseNo
+                                          End Sub)
+                            End If
+                            Thread.Sleep(2 * 1000)
+                        Else
+                            CrawlerLogger.LogInfo("PDF file format is different than implemented mechanism while processing Statement Of Claims Type. Case No - " + _caseNo)
+                        End If
+                    End If
+                Next
+            End Using
+            If extractedDataModel.FirstName IsNot Nothing Then
+                InsertDataIntoDB(srNo)
+            Else
+                CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)
+            End If
+        Catch ex As Exception
+            CrawlerLogger.LogError("Exception occurred at ExtractDataFromStatementPDFPersolve(). Message: " + ex.Message)
+        End Try
+    End Sub
+    Private Sub ExtractDataFromStatementPDFGoldMan(fullPdfPath As String, recordModel As RecordModel, srNo As String)
+        Try
+            'First add current case details into ExtractedDataModel
+            extractedDataModel = New ExtractedDataModel()
+            extractedDataModel.CaseDetails = recordModel
+            extractedDataModel.CaseDetails.PartyModelList = partyModelList
+            Dim _caseNo As String = recordModelList.Where(Function(o) o.SrNo = srNo).Select(Function(o) o.CaseNumber).FirstOrDefault()
+            Using pdfDoc = PdfDocument.Open(fullPdfPath)
+                If Me.InvokeRequired Then
+                    Me.Invoke(Sub()
+                                  mainDashboardForm.toolStripProgressBar.Value = 55
+                                  mainDashboardForm.toolStripLabel.Text = "Reading PDF of downloaded and Extracting the data"
+                              End Sub)
+                End If
+                Thread.Sleep(2 * 1000)
+                For Each page In pdfDoc.GetPages()
+                    ' Either extract based on order in the underlying document with newlines and spaces.
+                    Dim text = ContentOrderTextExtractor.GetText(page)
+                    If String.IsNullOrEmpty(text) Then
+                        CrawlerLogger.LogError("This PDF is might be Handwritten Or Scanned! Case No - " + _caseNo)
+                    Else
+                        Dim prev As String = String.Empty
+                        If text.Contains("INSTALLMENT LOAN AGREEMENT") Then
+                            Dim theLines As String() = text.Split(ChrW(10))
+                            isAccountDetailsInPdf = True
+                            Dim words = page.GetWords(NearestNeighbourWordExtractor.Instance)
+                            Dim blocks = DocstrumBoundingBoxes.Instance.GetBlocks(words)
+                            Dim orderedBlocks = DefaultReadingOrderDetector.Instance.[Get](blocks)
+                            For Each item In orderedBlocks
+                                Dim strBlock As String = item.Text
+                                Dim strBlockSplit As String() = strBlock.Split(ChrW(10))
+                                For i As Integer = 0 To strBlockSplit.Length - 1
+                                    If strBlockSplit(i).Contains("Borrower") Then
+                                        Dim _names As String() = strBlockSplit(i + 1).Split(" "c)
+                                        If _names.Length = 2 Then
+                                            extractedDataModel.FirstName = _names(0)
+                                            extractedDataModel.LastName = _names(1)
+                                        Else
+                                            extractedDataModel.FirstName = _names(0)
+                                            extractedDataModel.MiddleName = _names(1)
+                                            extractedDataModel.LastName = _names(2)
+
+                                        End If
+                                        If strBlockSplit.Length = 5 Then
+                                            Dim address As String = strBlockSplit(i + 2)
+                                            extractedDataModel.Address1 = address
+                                            Dim address2 As String = strBlockSplit(i + 3)
+                                            extractedDataModel.Address1 = address2
+                                            Dim stateInfo As String() = strBlockSplit(4).Split(","c)
+                                            If stateInfo.Length > 3 Then
+                                                extractedDataModel.City = stateInfo(0) + " " + stateInfo(1)
+                                                extractedDataModel.State = stateInfo(2)
+                                                extractedDataModel.PostalCode = stateInfo(3)
+                                            Else
+                                                extractedDataModel.City = stateInfo(0)
+                                                extractedDataModel.State = stateInfo(1)
+                                                extractedDataModel.PostalCode = stateInfo(2)
+                                            End If
+                                            Exit For
+                                        End If
+                                    End If
+                                Next
+                            Next
+                            CrawlerLogger.LogInfo("Data has been successfully extracted for Statement of Claims type PDF. Case No - " + _caseNo)
+                            If Me.InvokeRequired Then
+                                Me.Invoke(Sub()
+                                              mainDashboardForm.toolStripProgressBar.Value = 55
+                                              mainDashboardForm.toolStripLabel.Text = "Data has been successfully extracted for Statement of Claims type PDF. Case No -" + _caseNo
+                                          End Sub)
+                            End If
+                            Thread.Sleep(2 * 1000)
+                        Else
+                            CrawlerLogger.LogInfo("PDF file format is different than implemented mechanism while processing Statement Of Claims Type. Case No - " + _caseNo)
+                        End If
+                    End If
+                Next
+            End Using
+            If extractedDataModel.FirstName IsNot Nothing Then
+                InsertDataIntoDB(srNo)
+            Else
+                CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)
+            End If
+        Catch ex As Exception
+            CrawlerLogger.LogError("Exception occurred at ExtractDataFromStatementPDFGoldMan(). Message: " + ex.Message)
+        End Try
+    End Sub
 
     ''' <summary>
     ''' Extract required data from downloaded PDF files of type Notice To Appeared
@@ -502,6 +845,11 @@ CallParty:
                     Dim text = ContentOrderTextExtractor.GetText(page)
                     If String.IsNullOrEmpty(text) Then
                         CrawlerLogger.LogError("This PDF is might be Handwritten or Scanned! Case No - " + _caseNo)
+                        CrawlerLogger.LogError("Going For OCR! Case No - " + _caseNo)
+                        If extractedDataModel.FirstName Is Nothing Then
+                            ExportPDFToImage(fullPdfPath, srNo)
+                            Exit For
+                        End If
                     Else
                         Dim prev As String = String.Empty
                         If text.Contains("NOTICE TO PLAINTIFF") OrElse text.Contains("NOTICE TO PLAINTIFF AND DEFENDANTS") Then
@@ -584,6 +932,128 @@ CallParty:
 
     End Sub
 
+    Private Sub ExportPDFToImage(fullPdfPath As String, srNo As String)
+        '' Dim tmpnewpath As String = "F:\Ashish Data\Data\OCRTEXT"
+        Dim downloadedPath As String = Path.Combine(Environment.CurrentDirectory, "OCRTEXT")
+        If Not Directory.Exists(downloadedPath) Then
+            Directory.CreateDirectory(downloadedPath)
+            CrawlerLogger.LogInfo("OCRTEXT directory has been created.")
+        End If
+        Try
+            Dim objPDFConvertToImage As PDFConvertToImage = New PDFConvertToImage()
+            objPDFConvertToImage.OutputToMultipleFile = True
+            objPDFConvertToImage.FirstPageToConvert = -1
+            objPDFConvertToImage.LastPageToConvert = -1
+            objPDFConvertToImage.OutputFormat = "jpeg"
+            objPDFConvertToImage.ResolutionX = 300
+            objPDFConvertToImage.ResolutionY = 300
+            objPDFConvertToImage.JPEGQuality = 75
+            objPDFConvertToImage.DisablePrecompiledFonts = False
+            objPDFConvertToImage.FitPage = False
+            objPDFConvertToImage.GraphicsAlphaBit = 4
+            objPDFConvertToImage.TextAlphaBit = 4
+            objPDFConvertToImage.DisableFontMap = False
+            objPDFConvertToImage.DisablePlatformFonts = False
+            objPDFConvertToImage.DisablePrecompiledFonts = False
+            Try
+                If Not objPDFConvertToImage.Convert(fullPdfPath, Path.Combine(downloadedPath, "Notice.jpg"), 3) Then
+                    ''Throw New Exception()
+                End If
+            Catch ex As Exception
+
+            End Try
+            objPDFConvertToImage = Nothing
+            ConvertImgToText(downloadedPath, srNo)
+        Catch ex As Exception
+
+        End Try
+    End Sub
+
+    Private Sub ConvertImgToText(tmpnewpath As String, srNo As String)
+        Try
+            Dim processPath As String = ConfigurationManager.AppSettings("tessaract").ToString()
+            '' Dim processPath As String = "F:\Ashish Data\Data\Tesseract-OCR\Tesseract-OCR\tesseract.exe"
+            Dim jpegPath As String = tmpnewpath
+            Dim destinationPath As String = tmpnewpath
+            Dim tmpwork As DirectoryInfo = New DirectoryInfo(jpegPath)
+            Dim files As FileInfo() = tmpwork.GetFiles("*.jpg", SearchOption.TopDirectoryOnly)
+
+            For Each file As FileInfo In files
+                Dim timeout As Integer = 3000
+                Dim inputArgs As String = String.Concat(""""c, file.FullName, """"c)
+                Dim outputArgs As String = String.Concat(""""c, destinationPath + "\" + file.Name.Replace(".jpg", ""), """"c)
+                Dim commandArgs As String = String.Empty
+
+                commandArgs = String.Concat(inputArgs, " ", outputArgs)
+
+                Using process As New Process()
+                    process.StartInfo.FileName = processPath
+                    process.StartInfo.Arguments = commandArgs
+                    process.StartInfo.UseShellExecute = False
+                    process.StartInfo.RedirectStandardOutput = True
+                    process.StartInfo.RedirectStandardError = True
+                    process.StartInfo.CreateNoWindow = True
+                    process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden
+                    process.Start()
+                    process.BeginOutputReadLine()
+                    process.BeginErrorReadLine()
+                    process.WaitForExit()
+                    GC.Collect()
+                End Using
+                Dim textPath As String = destinationPath + "\" + file.Name.Replace(".jpg", ".txt")
+                ReadTextFile(textPath, srNo)
+            Next
+        Catch ex As Exception
+
+        End Try
+    End Sub
+
+    Private Sub ReadTextFile(textPath As String, srNo As String)
+        extractedDataModel = New ExtractedDataModel()
+        extractedDataModel.CaseDetails = recordModel
+        extractedDataModel.CaseDetails.PartyModelList = partyModelList
+        Dim textFile As String = textPath
+        If File.Exists(textFile) Then
+            Dim lines As String() = File.ReadAllLines(textFile)
+            For i As Integer = 0 To lines.Length - 1
+                If lines(i).ToLower().Contains("vs") Then
+                    Dim _name = lines(i + 1).Split(" "c)
+                    If _name.Length = 2 Then
+                        extractedDataModel.FirstName = _name(0)
+                        extractedDataModel.LastName = _name(1)
+                    Else
+                        extractedDataModel.FirstName = _name(0)
+                        extractedDataModel.MiddleName = _name(1)
+                        extractedDataModel.LastName = _name(2)
+                    End If
+
+                End If
+                If lines(i).Contains("NOTICE TO PLAINTIFF (S) AND DEFENDANT (S)") Then
+                    If lines(i + 1) Is "" Then
+                        If lines(i + 2) IsNot "" Then
+                            Dim address As String = lines(i + 4)
+                            Dim toBeSearched As String = ","
+                            Dim code As String = address.Substring(address.IndexOf(toBeSearched) + toBeSearched.Length)
+                            extractedDataModel.Address1 = code
+                            Dim stateCity As String = lines(i + 8)
+                            Dim result = stateCity.Substring(stateCity.Trim().LastIndexOf(","c) - 7).Split(","c)
+                            extractedDataModel.City = result(0)
+                            Dim stateInfo = result(1).Trim().Split(" "c)
+                            extractedDataModel.State = stateInfo(0).Trim()
+                            extractedDataModel.PostalCode = stateInfo(1).Trim()
+                            Exit For
+                        End If
+                    End If
+
+                End If
+
+            Next
+            If extractedDataModel.FirstName IsNot Nothing Then
+                InsertDataIntoDB(srNo)
+            End If
+
+        End If
+    End Sub
 
     ''' <summary>
     ''' Extract required data from downloaded PDF files of type Statement of Claims
@@ -788,6 +1258,9 @@ CallParty:
 
                 'Wait screen to extract data properly and stop to load another case for 2 second
                 Thread.Sleep(3 * 1000)
+
+                'chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementsByTagName('input')[1].value='pending';")
+                'Thread.Sleep(3 * 1000)
             End If
         Catch ex As Exception
             CrawlerLogger.LogError("Exception occurred at RenderPreviousPage(). Message: " + ex.Message)
@@ -929,6 +1402,8 @@ CallParty:
                 Dim files = Directory.GetFiles(downloadedDirectoryPath)
                 For Each item In files
                     If File.Exists(item) Then
+                        GC.Collect()
+                        GC.WaitForPendingFinalizers()
                         File.Delete(item)
                         CrawlerLogger.LogInfo("File has been deleted successfully. File Name - " + item)
                         If Me.InvokeRequired Then
@@ -998,9 +1473,6 @@ CallParty:
             rowData("NewBalance") = If(extractedDataModel.NewBalance Is Nothing, String.Empty, extractedDataModel.NewBalance)
             rowData("BusinessName") = txtBox_BusinessName.Text.Trim()
             If isFormDateSelected = True Then
-                'Dim culture As IFormatProvider = New Globalization.CultureInfo("en-US", True)
-                'Dim dateFromVal As DateTime = DateTime.ParseExact(dateFrom.Value, "yyyy-MM-dd", culture)
-                'Dim dateToVal As DateTime = DateTime.ParseExact(dateTo.Value, "yyyy-MM-dd", culture)
                 rowData("DateFrom") = dateFrom.Value.ToString("yyyy-MM-dd")
                 rowData("DateTo") = dateTo.Value.ToString("yyyy-MM-dd")
             Else
@@ -1082,6 +1554,42 @@ CallParty:
             Return False
         End Try
     End Function
+    Private Sub CheckBoxComboBox1_CheckBoxCheckedChanged(sender As Object, e As EventArgs) Handles CheckBoxComboBox1.CheckBoxCheckedChanged
+        'If CheckBoxComboBox1.Text.ToString().Trim().Contains("----Select All----") Then
+        '    For index = 0 To CheckBoxComboBox1.Items.Count - 1
+        '        If CheckBoxComboBox1.CheckBoxItems(0).Checked = False Then
+        '            CheckBoxComboBox1.CheckBoxItems(index).Checked = False
+        '        Else
+        '            CheckBoxComboBox1.CheckBoxItems(index).Checked = True
+        '        End If
+        '    Next
+        'ElseIf Not CheckBoxComboBox1.Text.ToString().Trim().Contains("----Select All----") AndAlso CheckBoxComboBox1.SelectedIndex <> -1 Then
+        '    CheckBoxComboBox1.CheckBoxItems(CheckBoxComboBox1.SelectedIndex).Checked = True
+        'Else
+        '    If CheckBoxComboBox1.CheckBoxItems(0).Checked = False Then
+        '        For index = 0 To CheckBoxComboBox1.Items.Count - 1
+        '            CheckBoxComboBox1.CheckBoxItems(index).Checked = False
+        '        Next
+        '    End If
+
+        'End If
+
+
+
+
+
+    End Sub
+
+    Private Sub chkAll_CheckedChanged(sender As Object, e As EventArgs) Handles chkAll.CheckedChanged
+        For index = 0 To CheckBoxComboBox1.Items.Count - 1
+            CheckBoxComboBox1.CheckBoxItems(index).Checked = chkAll.Checked
+        Next
+    End Sub
+
+
+
+
+
 #End Region
 
 End Class

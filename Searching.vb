@@ -69,55 +69,55 @@ Public Class Searching
             End If
             If Common.IsInternetConnected() Then
                 btn_search.Enabled = True
-                If txtBox_BusinessName.Text <> "" Then
-                    If CheckBoxComboBox1.Text.ToString().Trim().Contains("----Select All----") Then
-                        commaSeparatedData = String.Join(",", CaseTypes.AsEnumerable().[Select](Function(x) x.propCaseValue.ToString()).ToArray())
-                    Else
-                        Dim checkRecord = CheckBoxComboBox1.Text.ToString().Trim().Replace(", ", ",")
-                        If String.IsNullOrEmpty(checkRecord) Then
-                            MessageBox.Show("Please check atleast one Case Type!", "Data Crawler", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-                            Return
-                        End If
-                        Dim splitValue As String() = checkRecord.Split(",")
-                        Dim pers As CasetypeDTO = New CasetypeDTO
-                        Dim strCTValue As String = ""
-                        For index = 0 To splitValue.Length - 1
-                            pers = CaseTypes.FirstOrDefault(Function(p) p.propCaseType = splitValue(index))
-                            strCTValue += (pers.propCaseValue & ",")
-                        Next
-
-                        commaSeparatedData = strCTValue.TrimEnd(",")
-
-                    End If
-
-                    chromiumWebBrowser = New ChromiumWebBrowser("https://myeclerk.myorangeclerk.com/Cases/Search")
-                    chromiumWebBrowser.Size = New Size(1300, 782)
-                    chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('ct').value=" + "'" + commaSeparatedData + "'")
-                    chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('businessName').value=" + "'" + txtBox_BusinessName.Text + "'")
-                    chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('caseNumber').value=" + "'" + txtBox_CaseNo.Text + "'")
-                    If isFormDateSelected Then
-                        chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateFrom').value=" + "'" + dateFrom.Value.ToString("M/d/yy") + "'")
-                        chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateTo').value=" + "'" + dateTo.Value.ToString("M/d/yy") + "'")
-                    End If
-                    chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('caseSearch').click()")
-                    'chromiumWebBrowser.DownloadHandler = New Downloader()
-                    Dim downer As Downloader = New Downloader()
-                    chromiumWebBrowser.DownloadHandler = downer
-                    mainDashboardForm.pnlMain.Controls.Clear()
-                    mainDashboardForm.pnlMain.Controls.Add(chromiumWebBrowser)
-                    mainDashboardForm.Show()
-                    chromiumWebBrowser.Dock = DockStyle.Fill
-                    Me.Hide()
-                    mainDashboardForm.DashboardToolStripMenuItem.Enabled = False
-                    AddHandler chromiumWebBrowser.FrameLoadEnd, AddressOf BrowserOnFrameEnd
-                    AddHandler chromiumWebBrowser.LoadingStateChanged, AddressOf Browser_LoadingStateChanged
-                    AddHandler downer.OnDownloadUpdatedFired, AddressOf OnDownloadUpdatedFired
-                    mainDashboardForm.toolStripLabel.Text = "Searching the criteria of: " + txtBox_BusinessName.Text
-                    mainDashboardForm.toolStripProgressBar.Value = 10
+                'If txtBox_BusinessName.Text <> "" Then
+                If CheckBoxComboBox1.Text.ToString().Trim().Contains("----Select All----") Then
+                    commaSeparatedData = String.Join(",", CaseTypes.AsEnumerable().[Select](Function(x) x.propCaseValue.ToString()).ToArray())
                 Else
-                    MessageBox.Show("Please Enter the Bussiness Name!", "Data Crawler", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-                    txtBox_BusinessName.Select()
+                    Dim checkRecord = CheckBoxComboBox1.Text.ToString().Trim().Replace(", ", ",")
+                    If String.IsNullOrEmpty(checkRecord) Then
+                        MessageBox.Show("Please check atleast one Case Type!", "Data Crawler", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                        Return
+                    End If
+                    Dim splitValue As String() = checkRecord.Split(",")
+                    Dim pers As CasetypeDTO = New CasetypeDTO
+                    Dim strCTValue As String = ""
+                    For index = 0 To splitValue.Length - 1
+                        pers = CaseTypes.FirstOrDefault(Function(p) p.propCaseType = splitValue(index))
+                        strCTValue += (pers.propCaseValue & ",")
+                    Next
+
+                    commaSeparatedData = strCTValue.TrimEnd(",")
+
                 End If
+
+                chromiumWebBrowser = New ChromiumWebBrowser("https://myeclerk.myorangeclerk.com/Cases/Search")
+                chromiumWebBrowser.Size = New Size(1300, 782)
+                chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('ct').value=" + "'" + commaSeparatedData + "'")
+                chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('businessName').value=" + "'" + txtBox_BusinessName.Text + "'")
+                chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('caseNumber').value=" + "'" + txtBox_CaseNo.Text + "'")
+                If isFormDateSelected Then
+                    chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateFrom').value=" + "'" + dateFrom.Value.ToString("M/d/yy") + "'")
+                    chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('DateTo').value=" + "'" + dateTo.Value.ToString("M/d/yy") + "'")
+                End If
+                chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded("document.getElementById('caseSearch').click()")
+                'chromiumWebBrowser.DownloadHandler = New Downloader()
+                Dim downer As Downloader = New Downloader()
+                chromiumWebBrowser.DownloadHandler = downer
+                mainDashboardForm.pnlMain.Controls.Clear()
+                mainDashboardForm.pnlMain.Controls.Add(chromiumWebBrowser)
+                mainDashboardForm.Show()
+                chromiumWebBrowser.Dock = DockStyle.Fill
+                Me.Hide()
+                mainDashboardForm.DashboardToolStripMenuItem.Enabled = False
+                AddHandler chromiumWebBrowser.FrameLoadEnd, AddressOf BrowserOnFrameEnd
+                AddHandler chromiumWebBrowser.LoadingStateChanged, AddressOf Browser_LoadingStateChanged
+                AddHandler downer.OnDownloadUpdatedFired, AddressOf OnDownloadUpdatedFired
+                mainDashboardForm.toolStripLabel.Text = "Searching the criteria of: " + txtBox_BusinessName.Text
+                mainDashboardForm.toolStripProgressBar.Value = 10
+                'Else
+                '    MessageBox.Show("Please Enter the Bussiness Name!", "Data Crawler", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                '    txtBox_BusinessName.Select()
+                'End If
             Else
                 MessageBox.Show("Internet Connection is not available. Please check your internet connetion!", "Data Crawler", MessageBoxButtons.OK, MessageBoxIcon.Warning)
                 CrawlerLogger.LogError("Internet connection not available.")
@@ -648,7 +648,7 @@ CallParty:
                     End If
                 Next
             End Using
-            If extractedDataModel.FirstName IsNot Nothing Then
+            If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
                 InsertDataIntoDB(srNo)
             Else
                 CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)
@@ -722,7 +722,7 @@ CallParty:
                     End If
                 Next
             End Using
-            If extractedDataModel.FirstName IsNot Nothing Then
+            If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
                 InsertDataIntoDB(srNo)
             Else
                 CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)
@@ -808,7 +808,7 @@ CallParty:
                     End If
                 Next
             End Using
-            If extractedDataModel.FirstName IsNot Nothing Then
+            If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
                 InsertDataIntoDB(srNo)
             Else
                 CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)
@@ -846,10 +846,10 @@ CallParty:
                     If String.IsNullOrEmpty(text) Then
                         CrawlerLogger.LogError("This PDF is might be Handwritten or Scanned! Case No - " + _caseNo)
                         CrawlerLogger.LogError("Going For OCR! Case No - " + _caseNo)
-                        If extractedDataModel.FirstName Is Nothing Then
-                            ExportPDFToImage(fullPdfPath, srNo)
-                            Exit For
-                        End If
+                        'If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
+                        ExportPDFToImage(fullPdfPath, srNo)
+                        Exit For
+                        'End If
                     Else
                         Dim prev As String = String.Empty
                         If text.Contains("NOTICE TO PLAINTIFF") OrElse text.Contains("NOTICE TO PLAINTIFF AND DEFENDANTS") Then
@@ -920,7 +920,7 @@ CallParty:
                     End If
                 Next
             End Using
-            If extractedDataModel.FirstName IsNot Nothing Then
+            If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
                 InsertDataIntoDB(srNo)
             Else
                 CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)
@@ -1004,7 +1004,7 @@ CallParty:
                 ReadTextFile(textPath, srNo)
             Next
         Catch ex As Exception
-
+            CrawlerLogger.LogError("Exception occurred at ConvertImgToText(). Message: " + ex.Message)
         End Try
     End Sub
 
@@ -1022,15 +1022,42 @@ CallParty:
                         extractedDataModel.FirstName = _name(0)
                         extractedDataModel.LastName = _name(1)
                     Else
-                        extractedDataModel.FirstName = _name(0)
-                        extractedDataModel.MiddleName = _name(1)
-                        extractedDataModel.LastName = _name(2)
+                        If _name.Length < 2 AndAlso _name(0) = "" Then
+                            If lines(i + 2).Length > 2 AndAlso lines(i + 2).Split(" "c)(0) IsNot "" Then
+                                extractedDataModel.FirstName = lines(i + 2).Split(" "c)(0)
+                                extractedDataModel.MiddleName = lines(i + 2).Split(" "c)(1)
+                                extractedDataModel.LastName = lines(i + 2).Split(" "c)(2)
+                            End If
+                        Else
+                            extractedDataModel.FirstName = _name(0)
+                            extractedDataModel.MiddleName = _name(1)
+                            extractedDataModel.LastName = _name(2)
+                        End If
                     End If
 
                 End If
                 If lines(i).Contains("NOTICE TO PLAINTIFF (S) AND DEFENDANT (S)") Then
                     If lines(i + 1) Is "" Then
-                        If lines(i + 2) IsNot "" Then
+                        If lines(i + 2) IsNot "" AndAlso lines(i + 3) IsNot "" AndAlso lines(i + 4) IsNot "" Then
+                            Dim address As String = lines(i + 3)
+                            Dim stateCityPostal As String = lines(i + 4)
+                            Dim result = stateCityPostal.Split(" "c)
+                            Dim stateName As String
+                            Dim cityName As String
+                            Dim postalCode As String
+                            If result?.Length > 0 Then
+                                stateName = result.Where(Function(o) o.Length = 2).LastOrDefault()
+                                Dim stateIndex = stateCityPostal.IndexOf(stateName) 'state index
+                                cityName = stateCityPostal.Substring(0, stateIndex - 1)
+                                Dim postalCodeIndex = stateIndex + 2 'state index
+                                postalCode = stateCityPostal.Substring(postalCodeIndex).Trim()
+                            End If
+                            extractedDataModel.City = cityName
+                            extractedDataModel.State = stateName
+                            extractedDataModel.PostalCode = postalCode
+                            extractedDataModel.Address1 = address
+                            Exit For
+                        ElseIf lines(i + 2) IsNot "" Then
                             Dim address As String = lines(i + 4)
                             Dim toBeSearched As String = ","
                             Dim code As String = address.Substring(address.IndexOf(toBeSearched) + toBeSearched.Length)
@@ -1048,7 +1075,7 @@ CallParty:
                 End If
 
             Next
-            If extractedDataModel.FirstName IsNot Nothing Then
+            If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
                 InsertDataIntoDB(srNo)
             End If
 
@@ -1177,7 +1204,7 @@ CallParty:
 
                                         End If
                                     ElseIf mAdd.Success Then
-                                        If extractedDataModel.FirstName Is Nothing Then
+                                        If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
                                             Dim _detailsName As String = strBlockSplit(i - 2)
                                             Dim _names As String() = _detailsName.Split(" "c)
                                             If _names.Length = 2 Then
@@ -1214,9 +1241,8 @@ CallParty:
                     End If
                 Next
             End Using
-            If extractedDataModel.FirstName IsNot Nothing Then
+            If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
                 InsertDataIntoDB(srNo)
-
             Else
                 CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)
             End If
@@ -1381,7 +1407,7 @@ CallParty:
 
             End Using
 
-            If extractedDataModel.FirstName IsNot Nothing Then
+            If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
                 InsertDataIntoDB(_srNo)
             Else
                 CrawlerLogger.LogError("FirstName is not present. Case No: " + _caseNo)

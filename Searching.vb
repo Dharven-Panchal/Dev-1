@@ -131,6 +131,7 @@ Public Class Searching
     Private Sub OnDownloadUpdatedFired(sender As Object, e As DownloadItem)
         isPDFDownloaded = e.PercentComplete
     End Sub
+
     Public Sub BrowserOnFrameEnd(sender As Object, e As FrameLoadEndEventArgs)
         Try
             If (chromiumWebBrowser.IsBrowserInitialized And MainFrameRenderCount = 1) Then
@@ -145,6 +146,7 @@ Public Class Searching
             CrawlerLogger.LogError("Exception occurred when Browser on Frame End event executed. Message: " + ex.Message)
         End Try
     End Sub
+
     Private Sub Browser_LoadingStateChanged(sender As Object, e As LoadingStateChangedEventArgs)
         If Not e.IsLoading Then
             Dim script = "$(document).ready(function () {
@@ -158,6 +160,7 @@ Public Class Searching
             chromiumWebBrowser.ExecuteScriptAsyncWhenPageLoaded(script)
         End If
     End Sub
+
     Private Sub Searching_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Try
             comboBox_caseType.Select()
@@ -188,9 +191,12 @@ Public Class Searching
             CrawlerLogger.LogError("Exception occurred while loading Search Form. Message: " + ex.Message)
         End Try
     End Sub
+
     Private Sub dateFrom_ValueChanged(sender As Object, e As EventArgs) Handles dateTo.ValueChanged, dateFrom.ValueChanged
         IsDateValid()
     End Sub
+
+
     ''' <summary>
     ''' Compare Date From and Date To 
     ''' </summary>
@@ -213,6 +219,8 @@ Public Class Searching
             Return False
         End Try
     End Function
+
+
     ''' <summary>
     ''' All records will be converted into Record Model class
     ''' </summary>
@@ -283,6 +291,8 @@ Public Class Searching
             CrawlerLogger.LogError("Exception occurred at GetTableData(). Message: " + ex.Message)
         End Try
     End Sub
+
+
     ''' <summary>
     ''' Each data will be processed
     ''' </summary>
@@ -376,12 +386,13 @@ CallParty:
             Const downloadPDFScript As String = "(function () { " _
                                      & "		var tdDetailTable = document.getElementById('docketEventsCollapse').getElementsByTagName('table')[0]; " _
                                      & "		var isNoticeFound = false; " _
+                                     & "		var isSummonsFound = false; " _
                                      & "		for (var i = 0, row; row = tdDetailTable.rows[i]; i++)  " _
                                      & "		{ " _
                                      & "			 var ts = document.getElementsByClassName('noprint'); " _
                                      & "			 for(let j = 0; j <= ts.length; j++) " _
                                      & "			 { " _
-                                     & "				if(ts[j] != null && (ts[j].text =='Notice to Appear Scheduled' || ts[j].text =='Notice to Appear')) " _
+                                     & "                if(ts[j] != null && (ts[j].text =='Notice to Appear Scheduled' || ts[j].text =='Notice to Appear')) " _
                                      & "				{ " _
                                      & "					var link = document.createElement('a');       " _
                                      & "					link.href = ts[j].href;               " _
@@ -392,8 +403,19 @@ CallParty:
                                      & "					isNoticeFound = true; " _
                                      & "					return 'NoticeAppearScheduled'+ j + '.pdf' " _
                                      & "				} " _
+                                     & "				else if(ts[j] != null && (ts[j].text =='Summons Issued 5 Day' || ts[j].text =='Summons Issued Electronically as to')) " _
+                                     & "				{ " _
+                                     & "					var link = document.createElement('a');       " _
+                                     & "					link.href = ts[j].href;               " _
+                                     & "					link.download = 'SummonsIssued'+ j + '.pdf';      " _
+                                     & "					document.body.appendChild(link);  " _
+                                     & "					link.click();               " _
+                                     & "					document.body.removeChild(link); " _
+                                     & "					isSummonsFound = true; " _
+                                     & "					return 'SummonsIssued'+ j + '.pdf' " _
+                                     & "				} " _
                                      & "			 } " _
-                                     & "			 if(!isNoticeFound) " _
+                                     & "			 if(!isNoticeFound && !isSummonsFound)  " _
                                      & "			 { " _
                                      & "			        for(let j = 0; j <= ts.length; j++) " _
                                      & "			        { " _
@@ -472,6 +494,16 @@ CallParty:
                         Else
                             CrawlerLogger.LogError("pdf file not available for Statement of Claims.")
                         End If
+                    ElseIf fullPdfPath.Contains("SummonsIssued") Then
+                        CrawlerLogger.LogError("Summon Issued type pdf found and it is going For OCR!")
+                        If Me.InvokeRequired Then
+                            Me.Invoke(Sub()
+                                          mainDashboardForm.toolStripProgressBar.Value = 55
+                                          mainDashboardForm.toolStripLabel.Text = "Summon Issued type pdf is going for OCR."
+                                      End Sub)
+                        End If
+                        ''	Summons Issued type
+                        ExportPDFToImage(fullPdfPath, _srNo, pdfFileName.ToString())
                     ElseIf fullPdfPath.Contains("Complaint") Then
                         If txtBox_BusinessName.Text?.ToLower().Contains("goldman sachs") Then
                             CrawlerLogger.LogInfo("Goldman Sachs type pdf file not available for Complaint.")
@@ -506,7 +538,7 @@ CallParty:
                             Return
                         End If
                         If IsAvailableFile(fullPdfPath) Then
-                            ExtractDataFromNoticePDF(fullPdfPath, recordModel, _srNo)
+                            ExtractDataFromNoticePDF(fullPdfPath, recordModel, _srNo, pdfFileName.ToString())
                             isAccountDetailsInPdf = False
                         Else
                             CrawlerLogger.LogError("pdf file not available for Notice to Appeared Scheduled.")
@@ -536,6 +568,11 @@ CallParty:
         End Try
     End Sub
 
+
+    ''' <summary>
+    ''' Delete specific file from physical path
+    ''' </summary>
+    ''' <param name="fullPdfPath"></param>
     Private Sub DeletePerticularFile(fullPdfPath As String)
         Try
             If File.Exists(fullPdfPath) Then
@@ -556,6 +593,10 @@ CallParty:
         End Try
     End Sub
 
+
+    ''' <summary>
+    ''' Delete JPG and Text file from physical path
+    ''' </summary>
     Private Sub DeleteJPGTXTFileFromPath()
         Try
             Dim downloadedPath As String = Path.Combine(Environment.CurrentDirectory, "OCRTEXT")
@@ -580,6 +621,13 @@ CallParty:
         End Try
     End Sub
 
+
+    ''' <summary>
+    ''' Extract data from Statement of Claims and Tenant
+    ''' </summary>
+    ''' <param name="fullPdfPath"></param>
+    ''' <param name="recordModel"></param>
+    ''' <param name="srNo"></param>
     Private Sub ExtractDataFromStatementPDFTenant(fullPdfPath As String, recordModel As RecordModel, srNo As String)
         Try
             'First add current case details into ExtractedDataModel
@@ -657,6 +705,14 @@ CallParty:
             CrawlerLogger.LogError("Exception occurred at ExtractDataFromStatementPDFTenant(). Message: " + ex.Message)
         End Try
     End Sub
+
+
+    ''' <summary>
+    ''' Extract data from Statement of Claims and Persolve
+    ''' </summary>
+    ''' <param name="fullPdfPath"></param>
+    ''' <param name="recordModel"></param>
+    ''' <param name="srNo"></param>
     Private Sub ExtractDataFromStatementPDFPersolve(fullPdfPath As String, recordModel As RecordModel, srNo As String)
         Try
             'First add current case details into ExtractedDataModel
@@ -731,6 +787,14 @@ CallParty:
             CrawlerLogger.LogError("Exception occurred at ExtractDataFromStatementPDFPersolve(). Message: " + ex.Message)
         End Try
     End Sub
+
+
+    ''' <summary>
+    ''' Extract data from Statement of Claims and Goldman
+    ''' </summary>
+    ''' <param name="fullPdfPath"></param>
+    ''' <param name="recordModel"></param>
+    ''' <param name="srNo"></param>
     Private Sub ExtractDataFromStatementPDFGoldMan(fullPdfPath As String, recordModel As RecordModel, srNo As String)
         Try
             'First add current case details into ExtractedDataModel
@@ -818,13 +882,14 @@ CallParty:
         End Try
     End Sub
 
+
     ''' <summary>
     ''' Extract required data from downloaded PDF files of type Notice To Appeared
     ''' </summary>
     ''' <param name="fullPdfPath"></param>
     ''' <param name="recordModel"></param>
     ''' <param name="srNo"></param>
-    Private Sub ExtractDataFromNoticePDF(fullPdfPath As String, recordModel As RecordModel, srNo As String)
+    Private Sub ExtractDataFromNoticePDF(fullPdfPath As String, recordModel As RecordModel, srNo As String, pdfName As String)
         Try
             'First add current case details into ExtractedDataModel
             extractedDataModel = New ExtractedDataModel()
@@ -847,7 +912,7 @@ CallParty:
                         CrawlerLogger.LogError("This PDF is might be Handwritten or Scanned! Case No - " + _caseNo)
                         CrawlerLogger.LogError("Going For OCR! Case No - " + _caseNo)
                         'If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
-                        ExportPDFToImage(fullPdfPath, srNo)
+                        ExportPDFToImage(fullPdfPath, srNo, pdfName)
                         Exit For
                         'End If
                     Else
@@ -865,7 +930,11 @@ CallParty:
                                 For i As Integer = 0 To strBlockSplit.Length - 1
                                     If prev.Contains("NOTICE TO PLAINTIFF (S) AND DEFENDANT (S)") OrElse prev.Contains("NOTICE TO PLAINTIFF AND DEFENDANTS") OrElse prev.Contains("NOTICE TO PLAINTIFF(S) AND DEFENDANT(S)") Then
                                         Dim _names As String() = strBlockSplit(i).Split(" "c)
-                                        If _names.Length = 3 Then
+                                        If _names.Length > 3 Then
+                                            extractedDataModel.FirstName = _names(0)
+                                            extractedDataModel.MiddleName = _names(1)
+                                            extractedDataModel.LastName = _names(2)
+                                        ElseIf _names.Length = 3 Then
                                             extractedDataModel.FirstName = _names(0)
                                             extractedDataModel.MiddleName = _names(1)
                                             extractedDataModel.LastName = _names(2)
@@ -877,6 +946,21 @@ CallParty:
                                             Dim address As String = strBlockSplit(1)
                                             extractedDataModel.Address1 = address
                                             Dim stateInfo As String() = strBlockSplit(2).Split(" "c)
+                                            If stateInfo.Length > 3 Then
+                                                extractedDataModel.City = stateInfo(0) + " " + stateInfo(1)
+                                                extractedDataModel.State = stateInfo(2)
+                                                extractedDataModel.PostalCode = stateInfo(3)
+                                            Else
+                                                extractedDataModel.City = stateInfo(0)
+                                                extractedDataModel.State = stateInfo(1)
+                                                extractedDataModel.PostalCode = stateInfo(2)
+                                            End If
+                                        ElseIf strBlockSplit.Length = 4 Then
+                                            Dim address As String = strBlockSplit(1)
+                                            Dim address2 As String = strBlockSplit(2)
+                                            extractedDataModel.Address1 = address
+                                            extractedDataModel.Address2 = address2
+                                            Dim stateInfo As String() = strBlockSplit(3).Split(" "c)
                                             If stateInfo.Length > 3 Then
                                                 extractedDataModel.City = stateInfo(0) + " " + stateInfo(1)
                                                 extractedDataModel.State = stateInfo(2)
@@ -932,7 +1016,15 @@ CallParty:
 
     End Sub
 
-    Private Sub ExportPDFToImage(fullPdfPath As String, srNo As String)
+
+    ''' <summary>
+    ''' Convert PDF to Image per each page
+    ''' </summary>
+    ''' <param name="fullPdfPath"></param>
+    ''' <param name="srNo"></param>
+    ''' <param name="pdfName"></param>
+    Private Sub ExportPDFToImage(fullPdfPath As String, srNo As String, pdfName As String)
+        Dim pdfNameWithoutExt = pdfName.Replace(".pdf", "")
         '' Dim tmpnewpath As String = "F:\Ashish Data\Data\OCRTEXT"
         Dim downloadedPath As String = Path.Combine(Environment.CurrentDirectory, "OCRTEXT")
         If Not Directory.Exists(downloadedPath) Then
@@ -956,20 +1048,27 @@ CallParty:
             objPDFConvertToImage.DisablePlatformFonts = False
             objPDFConvertToImage.DisablePrecompiledFonts = False
             Try
-                If Not objPDFConvertToImage.Convert(fullPdfPath, Path.Combine(downloadedPath, "Notice.jpg"), 3) Then
+                If Not objPDFConvertToImage.Convert(fullPdfPath, Path.Combine(downloadedPath, pdfNameWithoutExt + ".jpg"), 3) Then
                     ''Throw New Exception()
                 End If
             Catch ex As Exception
 
             End Try
             objPDFConvertToImage = Nothing
-            ConvertImgToText(downloadedPath, srNo)
+            ConvertImgToText(downloadedPath, srNo, pdfNameWithoutExt)
         Catch ex As Exception
 
         End Try
     End Sub
 
-    Private Sub ConvertImgToText(tmpnewpath As String, srNo As String)
+
+    ''' <summary>
+    ''' Convert Produced image to text
+    ''' </summary>
+    ''' <param name="tmpnewpath"></param>
+    ''' <param name="srNo"></param>
+    ''' <param name="pdfName"></param>
+    Private Sub ConvertImgToText(tmpnewpath As String, srNo As String, pdfName As String)
         Try
             Dim processPath As String = ConfigurationManager.AppSettings("tessaract").ToString()
             '' Dim processPath As String = "F:\Ashish Data\Data\Tesseract-OCR\Tesseract-OCR\tesseract.exe"
@@ -1001,14 +1100,26 @@ CallParty:
                     GC.Collect()
                 End Using
                 Dim textPath As String = destinationPath + "\" + file.Name.Replace(".jpg", ".txt")
-                ReadTextFile(textPath, srNo)
+
+                'Here, check for pdf type and send for further process
+                If pdfName.Contains("NoticeAppearScheduled") Then
+                    ReadTextFile_Notice_OCR(textPath, srNo)
+                ElseIf pdfName.Contains("SummonsIssued") Then
+                    ReadTextFile_Summon_OCR(textPath, srNo)
+                End If
             Next
         Catch ex As Exception
             CrawlerLogger.LogError("Exception occurred at ConvertImgToText(). Message: " + ex.Message)
         End Try
     End Sub
 
-    Private Sub ReadTextFile(textPath As String, srNo As String)
+
+    ''' <summary>
+    ''' For Notice to Apper Type
+    ''' </summary>
+    ''' <param name="textPath"></param>
+    ''' <param name="srNo"></param>
+    Private Sub ReadTextFile_Notice_OCR(textPath As String, srNo As String)
         extractedDataModel = New ExtractedDataModel()
         extractedDataModel.CaseDetails = recordModel
         extractedDataModel.CaseDetails.PartyModelList = partyModelList
@@ -1081,6 +1192,271 @@ CallParty:
 
         End If
     End Sub
+
+
+    ''' <summary>
+    ''' OCR on Summon PDF types
+    ''' </summary>
+    ''' <param name="textPath"></param>
+    ''' <param name="srNo"></param>
+    ''' <returns></returns>
+    Private Function ReadTextFile_Summon_OCR(textPath As String, srNo As Integer) As Boolean
+        Try
+            Dim Name As String = String.Empty
+            Dim FirstName As String = String.Empty
+            Dim MiddleName As String = String.Empty
+            Dim LastName As String = String.Empty
+            Dim Address1 As String = String.Empty
+            Dim Address2 As String = String.Empty
+            Dim Address3 As String = String.Empty
+            Dim city As String = String.Empty
+            Dim State As String = String.Empty
+            Dim ZipCode As String = String.Empty
+            extractedDataModel = New ExtractedDataModel()
+            extractedDataModel.CaseDetails = recordModel
+            extractedDataModel.CaseDetails.PartyModelList = partyModelList
+            Dim _caseNo As String = recordModelList.Where(Function(o) o.SrNo = srNo).Select(Function(o) o.CaseNumber).FirstOrDefault()
+            Dim textFile As String = textPath
+
+            If Me.InvokeRequired Then
+                Me.Invoke(Sub()
+                              mainDashboardForm.toolStripProgressBar.Value = 60
+                              mainDashboardForm.toolStripLabel.Text = "Summon Issued PDF is being proccessed for OCR. Case No: " + _caseNo.Substring(_caseNo.IndexOf(">") + 1, _caseNo.IndexOf("</a>") - _caseNo.IndexOf(">") - 1)
+                          End Sub)
+            End If
+            Thread.Sleep(1 * 1000)
+
+            If File.Exists(textFile) Then
+                Dim lines As String() = File.ReadAllLines(textFile)
+                For i As Integer = 0 To lines.Length - 1
+                    If lines(i).ToUpper().Contains("TO: UNKNOWN TENANTS") Or lines(i).ToLower().Contains("TO: UNKNOWN TENANTS") Then
+                        'UNKNOWN TENANTS
+                        '412 North Pine Hills Road, Suite EF
+                        'Orlando, Florida 32811
+                        'TO: UNKNOWN TENANTS
+                        Dim Address = lines(i - 2).Split(","c)
+                        If Address.Length > 1 Then
+                            Address1 = Address(0)
+                            Address2 = Address(1)
+                        End If
+                        city = lines(i - 1).Split(","c)(0)
+                        State = lines(i - 1).Split(","c)(1).Split(" "c)(1)
+                        ZipCode = lines(i - 1).Split(","c)(1).Split(" "c)(2)
+                        Exit For
+                    ElseIf lines(i).ToUpper().Contains("FIVE-DAY EVICTION SUMMONS/RESIDENTIAL") Or lines(i).ToLower().Contains("FIVE-DAY EVICTION SUMMONS/RESIDENTIAL") Then
+                        'FIVE-Day EVICTION SUMMONS/RESIDENTIAL
+                        'TO CARLOS PEREZ A/K/A CARLOS PEREZ ALAMO
+                        '7118 Linmar Circle, Lot 35
+                        'Orlando, FL 32818
+
+                        Name = lines(i + 2).Replace("TO:", " ").Trim()
+                        Address1 = lines(i + 3).Replace("TO:", " ").Trim()
+                        city = lines(i + 4).Split(","c)(0)
+                        State = lines(i + 4).Split(","c)(1).Trim().Split(" "c)(0)
+                        ZipCode = lines(i + 4).Split(","c)(1).Trim().Split(" "c)(1)
+
+                        If Not String.IsNullOrEmpty(Name) AndAlso Name.Length > 0 Then
+                            Dim splitValue = Name.Split(" "c)
+                            If splitValue.Length = 2 Then
+                                FirstName = splitValue(0)
+                                LastName = splitValue(1)
+                            ElseIf splitValue.Length = 3 Then
+                                FirstName = splitValue(0)
+                                MiddleName = splitValue(1)
+                                LastName = splitValue(2)
+                            ElseIf splitValue.Length = 4 Then
+                                FirstName = splitValue(3)
+                                MiddleName = splitValue(4)
+                                LastName = splitValue(5)
+                            End If
+                        End If
+                        Exit For
+                    ElseIf lines(i).ToUpper().Contains("EVICTION SUMMONS - RESIDENTIAL") Or lines(i).ToLower().Contains("EVICTION SUMMONS - RESIDENTIAL") Then
+                        'EVICTION SUMMONS - RESIDENTIAL
+                        'To JOHANNY ALEXIS
+                        '12104 Green Badger Lane — 1196A
+                        'Orlando, FL 32817
+
+                        Name = lines(i + 2).Replace("TO:", " ").Replace("To", " ").Trim()
+                        Address1 = lines(i + 3).Replace("TO:", " ").Trim()
+                        city = lines(i + 4).Split(","c)(0)
+                        State = lines(i + 4).Split(","c)(1).Trim().Split(" "c)(0)
+                        ZipCode = lines(i + 4).Split(","c)(1).Trim().Split(" "c)(1)
+
+                        If Not String.IsNullOrEmpty(Name) AndAlso Name.Length > 0 Then
+                            Dim splitValue = Name.Split(" "c)
+                            If splitValue.Length = 2 Then
+                                FirstName = splitValue(0)
+                                LastName = splitValue(1)
+                            ElseIf splitValue.Length = 3 Then
+                                FirstName = splitValue(0)
+                                MiddleName = splitValue(1)
+                                LastName = splitValue(2)
+                            ElseIf splitValue.Length = 4 Then
+                                FirstName = splitValue(3)
+                                MiddleName = splitValue(4)
+                                LastName = splitValue(5)
+                            End If
+                        End If
+                        Exit For
+                    ElseIf lines(i).ToUpper().Contains("EVICTION SUMMONS") Or lines(i).ToLower().Contains("EVICTION SUMMONS") Then
+                        ' EVICTION SUMMONS
+                        'To MIRTHA PIERRE, 5845 Elon Drive, Orlando, FL. 32808
+
+                        Dim Value = lines(i + 2).Replace("TO:", " ").Replace("To:", " ").Split(","c)
+                        Name = Value(0).Trim()
+                        Address1 = Value(1)
+                        city = Value(2)
+                        State = Value(3).Split("."c)(0).Trim().Split(" "c)(0)
+                        ZipCode = Value(3).Split("."c)(1).Trim().Split(" "c)(0)
+
+                        If Not String.IsNullOrEmpty(Name) AndAlso Name.Length > 0 Then
+                            Dim splitValue = Name.Split(" "c)
+                            If splitValue.Length = 2 Then
+                                FirstName = splitValue(0)
+                                LastName = splitValue(1)
+                            ElseIf splitValue.Length = 3 Then
+                                FirstName = splitValue(0)
+                                MiddleName = splitValue(1)
+                                LastName = splitValue(2)
+                            ElseIf splitValue.Length = 4 Then
+                                FirstName = splitValue(3)
+                                MiddleName = splitValue(4)
+                                LastName = splitValue(5)
+                            End If
+                        End If
+                        Exit For
+                    ElseIf lines(i).ToUpper().Contains("TO:") Or lines(i).ToLower().Contains("TO:") Then
+                        If lines(i).ToLower().Contains(",") Then
+                            'TO JACKELINE CASTRO BENAVIDES, Apartment #202, Camden Waterford Lakes
+                            '1351 Waterford Oak Drive, Orlando, FL 32828
+                            Dim _name = lines(i).Split(","c)
+                            Name = _name(0).ToString().Replace("TO:", " ").Trim()
+                            Address1 = _name(1)
+                            Address2 = _name(2)
+                            If Not String.IsNullOrEmpty(lines(i + 1).Split(","c)(0)) Then
+                                Address2 = Address2 + ", " + lines(i + 1).Split(","c)(0)
+                            End If
+                            city = lines(i + 1).Split(","c)(1)
+                            State = lines(i + 1).Split(","c)(2).Split(" "c)(1)
+                            ZipCode = lines(i + 1).Split(","c)(2).Split(" "c)(2)
+
+                            If Not String.IsNullOrEmpty(Name) AndAlso Name.Length > 0 Then
+                                Dim splitValue = Name.Split(" "c)
+                                If splitValue.Length = 2 Then
+                                    FirstName = splitValue(0)
+                                    LastName = splitValue(1)
+                                ElseIf splitValue.Length = 3 Then
+                                    FirstName = splitValue(0)
+                                    MiddleName = splitValue(1)
+                                    LastName = splitValue(2)
+                                End If
+                            End If
+
+                            If Name.Length = 2 Then
+                                FirstName = Name.Split(" "c)(0)
+                                LastName = Name.Split(" "c)(1)
+                            Else
+                                If _name.Length < 2 AndAlso _name(0) = "" Then
+                                    If lines(i + 2).Length > 2 AndAlso lines(i + 2).Split(" "c)(0) IsNot "" Then
+                                        FirstName = Name.Split(" "c)(0)
+                                        MiddleName = Name.Split(" "c)(1)
+                                        LastName = Name.Split(" "c)(2)
+                                    End If
+                                Else
+                                    FirstName = Name.Split(" "c)(0)
+                                    MiddleName = Name.Split(" "c)(1)
+                                    LastName = Name.Split(" "c)(2)
+                                End If
+                            End If
+                            Exit For
+                        ElseIf lines(i).ToLower().Contains(" ") Then
+                            'TO SAMANTHA SPIVEY a/k/a SAMANTHA SPIVEY PELAEZ
+                            '114 S. Ulysses Drive
+                            'Apopka, Florida 32703
+
+                            'TO Daniel Kinnick
+                            '320 Hope Circle
+                            'Orlando, FL 32811
+                            'Name = lines(i).Replace("TO:", " ").Trim()
+                            Name = lines(i).Replace("TO:", " ").Replace("To:", " ").Trim()
+                            'If Not String.IsNullOrEmpty(lines(i)) AndAlso lines(i).ToLower().Contains("to:") Then
+                            '    Name = lines(i).Replace("TO:", "").Trim()
+                            '    If Not String.IsNullOrEmpty(Name) AndAlso Name.ToLower().Contains("to:") Then
+                            '        Name = Name.Replace("To:", "").Trim()
+                            '    End If
+                            'End If
+                            Address1 = lines(i + 1).Replace("TO:", " ").Trim()
+                            If Not String.IsNullOrEmpty(lines(i + 2)) Then
+                                city = lines(i + 2).Split(","c)(0)
+                                State = lines(i + 2).Split(","c)(1).Trim().Split(" "c)(0)
+                                ZipCode = lines(i + 2).Split(","c)(1).Trim().Split(" "c)(1)
+                            ElseIf Not String.IsNullOrEmpty(lines(i + 3)) Then
+                                city = lines(i + 3).Split(","c)(0)
+                                State = lines(i + 3).Split(","c)(1).Trim().Split(" "c)(0)
+                                ZipCode = lines(i + 3).Split(","c)(1).Trim().Split(" "c)(1)
+                            End If
+
+
+                            If Not String.IsNullOrEmpty(Name) AndAlso Name.Length > 0 Then
+                                Dim splitValue = Name.Split(" "c)
+                                If splitValue.Length = 2 Then
+                                    FirstName = splitValue(0)
+                                    LastName = splitValue(1)
+                                ElseIf splitValue.Length = 3 Then
+                                    FirstName = splitValue(0)
+                                    MiddleName = splitValue(1)
+                                    LastName = splitValue(2)
+                                ElseIf splitValue.Length = 4 Then
+                                    FirstName = splitValue(3)
+                                    MiddleName = splitValue(4)
+                                    LastName = splitValue(5)
+                                End If
+                            End If
+                        End If
+                        Exit For
+                    End If
+                Next
+
+                If Not String.IsNullOrEmpty(FirstName) Then
+                    extractedDataModel.FirstName = FirstName
+                End If
+                If Not String.IsNullOrEmpty(MiddleName) Then
+                    extractedDataModel.MiddleName = MiddleName
+                End If
+                If Not String.IsNullOrEmpty(LastName) Then
+                    extractedDataModel.LastName = LastName
+                End If
+                If Not String.IsNullOrEmpty(Address1) Then
+                    extractedDataModel.Address1 = Address1
+                End If
+                If Not String.IsNullOrEmpty(Address2) Then
+                    extractedDataModel.Address2 = Address2
+                End If
+                If Not String.IsNullOrEmpty(city) Then
+                    extractedDataModel.City = city
+                End If
+                If Not String.IsNullOrEmpty(State) Then
+                    extractedDataModel.State = State
+                End If
+                If Not String.IsNullOrEmpty(ZipCode) Then
+                    extractedDataModel.PostalCode = ZipCode
+                End If
+                If Not String.IsNullOrEmpty(extractedDataModel.FirstName) Then
+                    InsertDataIntoDB(srNo)
+                    Return True
+                Else
+                    Return False
+                    CrawlerLogger.LogError("FirstName is not present and Data not inserted into DB for Summon OCR. Case No: " + _caseNo)
+                End If
+            End If
+            Return False
+        Catch ex As Exception
+            CrawlerLogger.LogError("Exception occurred at ReadTextFile_Summon_OCR(). Message: " + ex.Message)
+            Return False
+        End Try
+    End Function
+
 
     ''' <summary>
     ''' Extract required data from downloaded PDF files of type Statement of Claims
@@ -1480,7 +1856,7 @@ CallParty:
             rowData = dtCoumn.NewRow()
             rowData("Fname") = extractedDataModel.FirstName.Trim()
             rowData("Mname") = If(extractedDataModel.MiddleName Is Nothing, String.Empty, extractedDataModel.MiddleName.Trim())
-            rowData("Lname") = extractedDataModel.LastName.Trim()
+            rowData("Lname") = If(extractedDataModel.LastName Is Nothing, String.Empty, extractedDataModel.LastName.Trim())
             rowData("Address1") = If(extractedDataModel.Address1 Is Nothing, String.Empty, extractedDataModel.Address1.Trim())
             rowData("Address2") = If(extractedDataModel.Address2 Is Nothing, String.Empty, extractedDataModel.Address2.Trim())
             rowData("State") = If(extractedDataModel.State Is Nothing, String.Empty, extractedDataModel.State.Trim())
@@ -1514,7 +1890,7 @@ CallParty:
                 CrawlerLogger.LogInfo("Extracted Data inserted into DataBase successfully. Case No - " + _caseNo)
                 If Me.InvokeRequired Then
                     Me.Invoke(Sub()
-                                  mainDashboardForm.toolStripProgressBar.Value = 60
+                                  mainDashboardForm.toolStripProgressBar.Value = 70
                                   mainDashboardForm.toolStripLabel.Text = "Inserting the data into db for this caseNo: " + _caseNo.Substring(_caseNo.IndexOf(">") + 1, _caseNo.IndexOf("</a>") - _caseNo.IndexOf(">") - 1)
                               End Sub)
                 End If
@@ -1580,6 +1956,7 @@ CallParty:
             Return False
         End Try
     End Function
+
     Private Sub CheckBoxComboBox1_CheckBoxCheckedChanged(sender As Object, e As EventArgs) Handles CheckBoxComboBox1.CheckBoxCheckedChanged
         'If CheckBoxComboBox1.Text.ToString().Trim().Contains("----Select All----") Then
         '    For index = 0 To CheckBoxComboBox1.Items.Count - 1
@@ -1600,21 +1977,19 @@ CallParty:
 
         'End If
 
-
-
-
-
     End Sub
 
+
+    ''' <summary>
+    ''' Check all checkbox of CaseType
+    ''' </summary>
+    ''' <param name="sender"></param>
+    ''' <param name="e"></param>
     Private Sub chkAll_CheckedChanged(sender As Object, e As EventArgs) Handles chkAll.CheckedChanged
         For index = 0 To CheckBoxComboBox1.Items.Count - 1
             CheckBoxComboBox1.CheckBoxItems(index).Checked = chkAll.Checked
         Next
     End Sub
-
-
-
-
 
 #End Region
 

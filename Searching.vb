@@ -46,6 +46,14 @@ Public Class Searching
     Dim firstlineregZip As Regex = New Regex(regexpZip, RegexOptions.Compiled)
 #End Region
 
+#Region "Eviction Summons/Residential pattern string"
+    Dim firstLine As String = "If you deposit rent"
+    Dim secondLine As String = "court, you must pay"
+    Dim ThirdLine As String = "or Cashiers Check made"
+    Dim forthLine As String = "the Court. There is"
+    Dim fifthLine As String = "for the first $500.00"
+#End Region
+
 #End Region
 
 #Region "Methods and Events"
@@ -1134,10 +1142,13 @@ CallParty:
                         extractedDataModel.LastName = _name(1)
                     Else
                         If _name.Length < 2 AndAlso _name(0) = "" Then
-                            If lines(i + 2).Length > 2 AndAlso lines(i + 2).Split(" "c)(0) IsNot "" Then
+                            If lines(i + 2).Length > 2 AndAlso lines(i + 2).Split(" "c)(0) IsNot "" AndAlso lines(i + 2).Split(" "c).Length = 3 Then
                                 extractedDataModel.FirstName = lines(i + 2).Split(" "c)(0)
                                 extractedDataModel.MiddleName = lines(i + 2).Split(" "c)(1)
                                 extractedDataModel.LastName = lines(i + 2).Split(" "c)(2)
+                            ElseIf Not String.IsNullOrEmpty(lines(i + 2)) AndAlso lines(i + 2).Split(" "c).Length = 2 Then
+                                extractedDataModel.FirstName = lines(i + 2).Split(" "c)(0)
+                                extractedDataModel.LastName = lines(i + 2).Split(" "c)(1)
                             End If
                         Else
                             extractedDataModel.FirstName = _name(0)
@@ -1229,7 +1240,7 @@ CallParty:
             If File.Exists(textFile) Then
                 Dim lines As String() = File.ReadAllLines(textFile)
                 For i As Integer = 0 To lines.Length - 1
-                    If lines(i).ToUpper().Contains("TO: UNKNOWN TENANTS") Or lines(i).ToLower().Contains("TO: UNKNOWN TENANTS") Then
+                    If lines(i).ToUpper().Contains("TO: UNKNOWN TENANTS") Or lines(i).ToLower().Contains("to: unknown tenants") Then
                         'UNKNOWN TENANTS
                         '412 North Pine Hills Road, Suite EF
                         'Orlando, Florida 32811
@@ -1243,7 +1254,7 @@ CallParty:
                         State = lines(i - 1).Split(","c)(1).Split(" "c)(1)
                         ZipCode = lines(i - 1).Split(","c)(1).Split(" "c)(2)
                         Exit For
-                    ElseIf lines(i).ToUpper().Contains("FIVE-DAY EVICTION SUMMONS/RESIDENTIAL") Or lines(i).ToLower().Contains("FIVE-DAY EVICTION SUMMONS/RESIDENTIAL") Then
+                    ElseIf lines(i).ToUpper().Contains("FIVE-DAY EVICTION SUMMONS/RESIDENTIAL") Or lines(i).ToLower().Contains("five-day eviction summons/residential") Then
                         'FIVE-Day EVICTION SUMMONS/RESIDENTIAL
                         'TO CARLOS PEREZ A/K/A CARLOS PEREZ ALAMO
                         '7118 Linmar Circle, Lot 35
@@ -1271,7 +1282,7 @@ CallParty:
                             End If
                         End If
                         Exit For
-                    ElseIf lines(i).ToUpper().Contains("EVICTION SUMMONS - RESIDENTIAL") Or lines(i).ToLower().Contains("EVICTION SUMMONS - RESIDENTIAL") Then
+                    ElseIf lines(i).ToUpper().Contains("EVICTION SUMMONS - RESIDENTIAL") Or lines(i).ToLower().Contains("eviction summons - residential") Then
                         'EVICTION SUMMONS - RESIDENTIAL
                         'To JOHANNY ALEXIS
                         '12104 Green Badger Lane — 1196A
@@ -1299,16 +1310,137 @@ CallParty:
                             End If
                         End If
                         Exit For
-                    ElseIf lines(i).ToUpper().Contains("EVICTION SUMMONS") Or lines(i).ToLower().Contains("EVICTION SUMMONS") Then
+                    ElseIf lines(i).ToUpper().Contains("EVICTION SUMMONS-RESIDENTIAL") Or lines(i).ToLower().Contains("eviction summons-residential") Then
+                        Dim patternValue = "for the first $500.00 and 1.5%"
+                        For index = i To i + 12
+                            If lines(index).Contains(patternValue) Then
+                                If Not String.IsNullOrEmpty(lines(index + 2)) AndAlso lines(index + 2).Contains("TO:") Then
+                                    Dim nameArray = lines(index + 2).Replace("TO:", "").Trim().Split(" "c)
+                                    If nameArray.Length = 2 Then
+                                        FirstName = nameArray(0)
+                                        LastName = nameArray(1)
+                                    ElseIf nameArray.Length = 3 Then
+                                        FirstName = nameArray(0)
+                                        MiddleName = nameArray(1)
+                                        LastName = nameArray(2)
+                                    ElseIf nameArray.Length = 4 Then
+                                        FirstName = nameArray(0)
+                                        MiddleName = nameArray(1)
+                                        LastName = nameArray(2) + " " + nameArray(3)
+                                    ElseIf nameArray.Length = 5 Then
+                                        FirstName = nameArray(0)
+                                        MiddleName = nameArray(1)
+                                        LastName = nameArray(2) + " " + nameArray(3) + " " + nameArray(4)
+                                    ElseIf nameArray.Length = 6 Then
+                                        FirstName = nameArray(0)
+                                        MiddleName = nameArray(1)
+                                        LastName = nameArray(2) + " " + nameArray(3) + " " + nameArray(4) + " " + nameArray(5)
+                                    End If
+
+                                    If Not String.IsNullOrEmpty(lines(index + 3)) Then
+                                        Address1 = lines(index + 3)
+                                    End If
+
+                                    If Not String.IsNullOrEmpty(lines(index + 4)) AndAlso lines(index + 4).Contains(",") Then
+                                        city = lines(index + 4).Split(","c)(0)
+                                        State = lines(index + 4).Split(","c)(1).Trim().Split(" "c)(0)
+                                        ZipCode = lines(index + 4).Split(","c)(1).Trim().Split(" "c)(1)
+                                    End If
+                                    Exit For
+                                End If
+                            End If
+                        Next
+                        Exit For
+                    ElseIf lines(i).ToUpper().Contains("EVICTION SUMMONS/RESIDENTIAL") Or lines(i).ToLower().Contains("eviction summons/residential") Then
+                        If String.IsNullOrEmpty(lines(i + 1)) AndAlso Not String.IsNullOrEmpty(lines(i + 2)) AndAlso lines(i + 2).Contains("TO:") Then
+                            Dim upperCaseName = lines(i + 2).Split(" "c).Where(Function(w) w = w.ToUpper()).Skip(1).ToArray()
+                            If upperCaseName.Length = 2 Then
+                                FirstName = upperCaseName(0)
+                                LastName = upperCaseName(1)
+                            ElseIf upperCaseName.Length = 3 Then
+                                FirstName = upperCaseName(0)
+                                MiddleName = upperCaseName(1)
+                                LastName = upperCaseName(2)
+                            End If
+
+                            'For the address
+                            If Not String.IsNullOrEmpty(lines(i + 3)) AndAlso lines(i + 3).ToUpper().Contains(secondLine.ToUpper()) Then
+                                'PDF-7
+                                Dim addressValue0 = lines(i + 3).Substring(0, lines(i + 3).IndexOf(secondLine)).Trim()
+                                If String.IsNullOrEmpty(lines(i + 4)) AndAlso Not String.IsNullOrEmpty(lines(i + 5)) AndAlso lines(i + 5).ToUpper().Contains(ThirdLine.ToUpper()) Then
+                                    Dim splittedFifth = lines(i + 5).Substring(0, lines(i + 5).IndexOf(ThirdLine)).Trim()
+                                    If String.IsNullOrEmpty(splittedFifth) AndAlso String.IsNullOrEmpty(lines(i + 6)) Then
+                                        If Not String.IsNullOrEmpty(lines(i + 7)) AndAlso lines(i + 7).ToUpper().Contains(forthLine.ToUpper()) Then
+                                            Dim addressValue1 = lines(i + 7).Substring(0, lines(i + 7).IndexOf(forthLine)).Trim()
+                                            If Not String.IsNullOrEmpty(lines(i + 8)) AndAlso lines(i + 8).ToUpper().Contains(fifthLine.ToUpper()) Then
+                                                Address2 = lines(i + 8).Substring(0, lines(i + 8).IndexOf(fifthLine)).Trim()
+                                            End If
+                                            If Not String.IsNullOrEmpty(lines(i + 9)) AndAlso lines(i + 9).Contains(",") Then
+                                                city = lines(i + 9).Split(","c)(0)
+                                                State = lines(i + 9).Split(","c)(1).Trim().Split(" "c)(0)
+                                                ZipCode = lines(i + 9).Split(","c)(1).Trim().Split(" "c)(1)
+                                            End If
+                                            Address1 = addressValue0 + " " + addressValue1
+                                        End If
+                                    End If
+                                End If
+                            ElseIf Not String.IsNullOrEmpty(lines(i + 3)) AndAlso lines(i + 3).ToUpper().Contains(forthLine.ToUpper()) Then
+                                'PDF-15
+                                If Not String.IsNullOrEmpty(lines(i + 4)) AndAlso lines(i + 4).ToUpper().Contains(fifthLine.ToUpper()) Then
+                                    Address1 = lines(i + 4).Substring(0, lines(i + 4).IndexOf(fifthLine)).Trim()
+                                End If
+                                If Not String.IsNullOrEmpty(lines(i + 5)) AndAlso lines(i + 5).Contains(",") Then
+                                    city = lines(i + 5).Split(","c)(0)
+                                    State = lines(i + 5).Split(","c)(1).Trim().Split(" "c)(0)
+                                    ZipCode = lines(i + 5).Split(","c)(1).Trim().Split(" "c)(1)
+                                End If
+                            End If
+                        ElseIf Not String.IsNullOrEmpty(lines(i + 1)) AndAlso Not String.IsNullOrEmpty(lines(i + 1)) AndAlso lines(i + 1).Contains("TO:") Then
+                            Dim upperCaseName = lines(i + 1).Split(" "c).Where(Function(w) w = w.ToUpper()).Skip(1).ToArray()
+                            If upperCaseName.Length = 2 Then
+                                FirstName = upperCaseName(0)
+                                LastName = upperCaseName(1)
+                            ElseIf upperCaseName.Length = 3 Then
+                                FirstName = upperCaseName(0)
+                                MiddleName = upperCaseName(1)
+                                LastName = upperCaseName(2)
+                            End If
+                            If Not String.IsNullOrEmpty(lines(i + 2)) AndAlso lines(i + 2).ToUpper().Contains(forthLine.ToUpper()) Then
+                                If String.IsNullOrEmpty(lines(i + 3)) AndAlso lines(i + 4).ToUpper().Contains(fifthLine.ToUpper()) Then
+                                    Address1 = lines(i + 4).Substring(0, lines(i + 4).IndexOf(fifthLine)).Trim()
+                                End If
+                                If Not String.IsNullOrEmpty(lines(i + 5)) AndAlso Not lines(i + 5).Contains(",") Then
+                                    Dim addressValue2 = lines(i + 5)
+                                    If Not String.IsNullOrEmpty(lines(i + 6)) AndAlso Not lines(i + 6).Contains(",") Then
+                                        Dim addressValue3 = lines(i + 6)
+                                        If String.IsNullOrEmpty(addressValue3) Then
+                                            Address2 = addressValue2
+                                        Else
+                                            Address1 = Address1 + " " + addressValue2
+                                            Address2 = addressValue3
+                                        End If
+                                        If Not String.IsNullOrEmpty(lines(i + 7)) AndAlso lines(i + 7).Contains(",") Then
+                                            city = lines(i + 7).Split(","c)(0)
+                                            State = lines(i + 7).Split(","c)(1).Trim().Split(" "c)(0)
+                                            ZipCode = lines(i + 7).Split(","c)(1).Trim().Split(" "c)(1)
+                                        End If
+                                    End If
+                                End If
+                            End If
+                        End If
+                        Exit For
+                    ElseIf lines(i).ToUpper().Contains("EVICTION SUMMONS") Or lines(i).ToLower().Contains("eviction summons") Then
                         ' EVICTION SUMMONS
                         'To MIRTHA PIERRE, 5845 Elon Drive, Orlando, FL. 32808
 
                         Dim Value = lines(i + 2).Replace("TO:", " ").Replace("To:", " ").Split(","c)
-                        Name = Value(0).Trim()
-                        Address1 = Value(1)
-                        city = Value(2)
-                        State = Value(3).Split("."c)(0).Trim().Split(" "c)(0)
-                        ZipCode = Value(3).Split("."c)(1).Trim().Split(" "c)(0)
+                        If Value.Length = 3 Then
+                            Name = Value(0).Trim()
+                            Address1 = Value(1)
+                            city = Value(2)
+                            State = Value(3).Split("."c)(0).Trim().Split(" "c)(0)
+                            ZipCode = Value(3).Split("."c)(1).Trim().Split(" "c)(0)
+                        End If
 
                         If Not String.IsNullOrEmpty(Name) AndAlso Name.Length > 0 Then
                             Dim splitValue = Name.Split(" "c)
@@ -1326,7 +1458,66 @@ CallParty:
                             End If
                         End If
                         Exit For
-                    ElseIf lines(i).ToUpper().Contains("TO:") Or lines(i).ToLower().Contains("TO:") Then
+                    ElseIf lines(i).ToLower().Contains("defendant:") Or lines(i).ToUpper().Contains("DEFENDANT:") Or lines(i).ToUpper().Trim().Contains("(DEFENDANT)") Or lines(i).ToLower().Trim().Contains("(defendant)") Then
+                        'TO CHARLES E.MAJOR, (Defendant)
+                        '849 23RD STREET, ORLANDO, FLORIDA 32805
+                        ''PDF 2
+                        If Not lines(i).ToLower().Contains("defendant:") Or Not lines(i).ToUpper().Contains("DEFENDANT:") Then
+                            Dim _name = lines(i).Replace("(Defendant)", "").Trim().Split(","c)
+                            Name = _name(0).ToString().Replace("TO:", " ").Replace("To:", " ").Trim().Replace("(Defendant)", " ").Trim()
+                            Address1 = lines(i + 1).Split(","c)(0)
+                            city = lines(i + 1).Split(","c)(1)
+                            State = lines(i + 1).Split(","c)(2).Split(" "c)(1)
+                            ZipCode = lines(i + 1).Split(","c)(2).Split(" "c)(2)
+
+                            Dim splitValue = Name.Split(" "c)
+                            If splitValue.Length = 2 Then
+                                FirstName = splitValue(0)
+                                LastName = splitValue(1)
+                            ElseIf splitValue.Length = 3 Then
+                                FirstName = splitValue(0)
+                                MiddleName = splitValue(1)
+                                LastName = splitValue(2)
+                            ElseIf splitValue.Length > 3 Then
+                                FirstName = splitValue(0)
+                                MiddleName = splitValue(1)
+                                LastName = Name.Replace(FirstName, "").Replace(MiddleName, "").Trim()
+                            End If
+                        Else
+                            'PDF 3
+                            'JANE DOE
+                            '402 CABALLERO RD.
+                            'OCOEE, FL 34761
+                            Dim _name = lines(i + 2).Split(" "c)
+                            Name = lines(i + 2).ToString().Trim()
+                            If Not String.IsNullOrEmpty(lines(i + 3)) Then
+                                Address1 = lines(i + 3)
+                                city = lines(i + 4).Split(","c)(0)
+                                State = lines(i + 4).Split(","c)(1).Split(" "c)(1)
+                                ZipCode = lines(i + 4).Split(","c)(1).Split(" "c)(2)
+                            ElseIf Not String.IsNullOrEmpty(lines(i + 4)) Then
+                                Address1 = lines(i + 4)
+                                city = lines(i + 5).Split(","c)(0)
+                                State = lines(i + 5).Split(","c)(1).Split(" "c)(1)
+                                ZipCode = lines(i + 5).Split(","c)(1).Split(" "c)(2)
+                            End If
+
+                            Dim splitValue = Name.Split(" "c)
+                            If splitValue.Length = 2 Then
+                                FirstName = splitValue(0)
+                                LastName = splitValue(1)
+                            ElseIf splitValue.Length = 3 Then
+                                FirstName = splitValue(0)
+                                MiddleName = splitValue(1)
+                                LastName = splitValue(2)
+                            ElseIf splitValue.Length > 3 Then
+                                FirstName = splitValue(0)
+                                MiddleName = splitValue(1)
+                                LastName = Name.Replace(FirstName, "").Replace(MiddleName, "").Trim()
+                            End If
+                        End If
+                        Exit For
+                    ElseIf lines(i).ToUpper().Contains("TO:") Or lines(i).ToLower().Contains("to:") Then
                         If lines(i).ToLower().Contains(",") Then
                             'TO JACKELINE CASTRO BENAVIDES, Apartment #202, Camden Waterford Lakes
                             '1351 Waterford Oak Drive, Orlando, FL 32828
@@ -1334,12 +1525,12 @@ CallParty:
                             Name = _name(0).ToString().Replace("TO:", " ").Trim()
                             Address1 = _name(1)
                             Address2 = _name(2)
-                            If Not String.IsNullOrEmpty(lines(i + 1).Split(","c)(0)) Then
+                            If Not String.IsNullOrEmpty(lines(i + 1)) AndAlso lines(i + 1).Contains(",") AndAlso Not String.IsNullOrEmpty(lines(i + 1).Split(","c)(0)) Then
                                 Address2 = Address2 + ", " + lines(i + 1).Split(","c)(0)
+                                city = lines(i + 1).Split(","c)(1)
+                                State = lines(i + 1).Split(","c)(2).Split(" "c)(1)
+                                ZipCode = lines(i + 1).Split(","c)(2).Split(" "c)(2)
                             End If
-                            city = lines(i + 1).Split(","c)(1)
-                            State = lines(i + 1).Split(","c)(2).Split(" "c)(1)
-                            ZipCode = lines(i + 1).Split(","c)(2).Split(" "c)(2)
 
                             If Not String.IsNullOrEmpty(Name) AndAlso Name.Length > 0 Then
                                 Dim splitValue = Name.Split(" "c)
@@ -1363,7 +1554,7 @@ CallParty:
                                         MiddleName = Name.Split(" "c)(1)
                                         LastName = Name.Split(" "c)(2)
                                     End If
-                                Else
+                                ElseIf Name.Length = 3 Then
                                     FirstName = Name.Split(" "c)(0)
                                     MiddleName = Name.Split(" "c)(1)
                                     LastName = Name.Split(" "c)(2)
@@ -1378,25 +1569,20 @@ CallParty:
                             'TO Daniel Kinnick
                             '320 Hope Circle
                             'Orlando, FL 32811
-                            'Name = lines(i).Replace("TO:", " ").Trim()
-                            Name = lines(i).Replace("TO:", " ").Replace("To:", " ").Trim()
-                            'If Not String.IsNullOrEmpty(lines(i)) AndAlso lines(i).ToLower().Contains("to:") Then
-                            '    Name = lines(i).Replace("TO:", "").Trim()
-                            '    If Not String.IsNullOrEmpty(Name) AndAlso Name.ToLower().Contains("to:") Then
-                            '        Name = Name.Replace("To:", "").Trim()
-                            '    End If
-                            'End If
-                            Address1 = lines(i + 1).Replace("TO:", " ").Trim()
-                            If Not String.IsNullOrEmpty(lines(i + 2)) Then
-                                city = lines(i + 2).Split(","c)(0)
-                                State = lines(i + 2).Split(","c)(1).Trim().Split(" "c)(0)
-                                ZipCode = lines(i + 2).Split(","c)(1).Trim().Split(" "c)(1)
-                            ElseIf Not String.IsNullOrEmpty(lines(i + 3)) Then
-                                city = lines(i + 3).Split(","c)(0)
-                                State = lines(i + 3).Split(","c)(1).Trim().Split(" "c)(0)
-                                ZipCode = lines(i + 3).Split(","c)(1).Trim().Split(" "c)(1)
-                            End If
 
+                            Name = lines(i).Replace("TO:", " ").Replace("To:", " ").Trim()
+                            Address1 = lines(i + 1).Replace("TO:", " ").Trim()
+                            If Not String.IsNullOrEmpty(Address1) Then
+                                If Not String.IsNullOrEmpty(lines(i + 2)) AndAlso lines(i + 2).Contains(",") Then
+                                    city = lines(i + 2).Split(","c)(0)
+                                    State = lines(i + 2).Split(","c)(1).Trim().Split(" "c)(0)
+                                    ZipCode = lines(i + 2).Split(","c)(1).Trim().Split(" "c)(1)
+                                ElseIf Not String.IsNullOrEmpty(lines(i + 3)) AndAlso lines(i + 3).Contains(",") Then
+                                    city = lines(i + 3).Split(","c)(0)
+                                    State = lines(i + 3).Split(","c)(1).Trim().Split(" "c)(0)
+                                    ZipCode = lines(i + 3).Split(","c)(1).Trim().Split(" "c)(1)
+                                End If
+                            End If
 
                             If Not String.IsNullOrEmpty(Name) AndAlso Name.Length > 0 Then
                                 Dim splitValue = Name.Split(" "c)
@@ -1411,6 +1597,80 @@ CallParty:
                                     FirstName = splitValue(3)
                                     MiddleName = splitValue(4)
                                     LastName = splitValue(5)
+                                ElseIf splitValue.Length = 5 Then
+                                    FirstName = splitValue(0) + " " + splitValue(1)
+                                    MiddleName = splitValue(2)
+                                    LastName = Name.Replace(FirstName, "").Replace(MiddleName, "").Trim()
+                                End If
+                            End If
+                            Exit For
+                        ElseIf lines(i).Length = 3 AndAlso Not String.IsNullOrEmpty(lines(i + 5)) AndAlso lines(i + 5).Contains(",") Then
+                            '5 Line data last is State,City and Zip
+                            Dim splitedName = lines(i + 1).Split(" "c)
+                            If splitedName.Length = 2 Then
+                                FirstName = splitedName(0)
+                                LastName = splitedName(1)
+                            ElseIf splitedName.Length = 3 Then
+                                FirstName = splitedName(0)
+                                MiddleName = splitedName(1)
+                                LastName = splitedName(2)
+                            End If
+                            Address1 = lines(i + 2) + " " + lines(i + 3)
+                            Address2 = lines(i + 4)
+                            city = lines(i + 5).Split(","c)(0)
+                            State = lines(i + 5).Split(","c)(1).Trim().Split(" "c)(0)
+                            ZipCode = lines(i + 5).Split(","c)(1).Trim().Split(" "c)(1)
+                        End If
+                        Exit For
+                    ElseIf lines(i).ToLower().Contains("defendant(s) address:") Or lines(i).ToUpper().Contains("DEFENDANT(S) ADDRESS:") Then
+                        If Not String.IsNullOrEmpty(lines(i + 1)) Then
+                            Address1 = lines(i + 1).Trim()
+                            If Not String.IsNullOrEmpty(lines(i + 2)) AndAlso lines(i + 2).Contains(",") Then
+                                Dim toBeSearched As String = ","
+                                Dim stateZipArray = lines(i + 2).Substring(lines(i + 2).IndexOf(toBeSearched) + toBeSearched.Length).Trim().Split(" "c)
+                                Dim nameCityArray = lines(i + 2).Substring(0, lines(i + 2).IndexOf(toBeSearched)).Trim().Split(" ")
+                                If nameCityArray.Length = 4 Then
+                                    FirstName = nameCityArray(0)
+                                    MiddleName = nameCityArray(1)
+                                    LastName = nameCityArray(2)
+                                    city = nameCityArray(3)
+                                ElseIf nameCityArray.Length = 3 Then
+                                    FirstName = nameCityArray(0)
+                                    LastName = nameCityArray(1)
+                                    city = nameCityArray(2)
+                                ElseIf nameCityArray.Length = 2 Then
+                                    FirstName = nameCityArray(0)
+                                    city = nameCityArray(1)
+                                End If
+
+                                If stateZipArray.Length = 2 Then
+                                    State = stateZipArray(0)
+                                    ZipCode = stateZipArray(1)
+                                End If
+                            End If
+                        ElseIf String.IsNullOrEmpty(lines(i + 1)) AndAlso Not String.IsNullOrEmpty(lines(i + 2)) Then
+                            Address1 = lines(i + 2).Trim()
+                            If String.IsNullOrEmpty(lines(i + 3)) AndAlso Not String.IsNullOrEmpty(lines(i + 4)) AndAlso lines(i + 4).Contains(",") Then
+                                Dim toBeSearched As String = ","
+                                Dim stateZipArray = lines(i + 4).Substring(lines(i + 4).IndexOf(toBeSearched) + toBeSearched.Length).Trim().Split(" "c)
+                                Dim nameCityArray = lines(i + 4).Substring(0, lines(i + 4).IndexOf(toBeSearched)).Trim().Split(" ")
+                                If nameCityArray.Length = 4 Then
+                                    FirstName = nameCityArray(0)
+                                    MiddleName = nameCityArray(1)
+                                    LastName = nameCityArray(2)
+                                    city = nameCityArray(3)
+                                ElseIf nameCityArray.Length = 3 Then
+                                    FirstName = nameCityArray(0)
+                                    LastName = nameCityArray(1)
+                                    city = nameCityArray(2)
+                                ElseIf nameCityArray.Length = 2 Then
+                                    FirstName = nameCityArray(0)
+                                    city = nameCityArray(1)
+                                End If
+
+                                If stateZipArray.Length = 2 Then
+                                    State = stateZipArray(0)
+                                    ZipCode = stateZipArray(1)
                                 End If
                             End If
                         End If
